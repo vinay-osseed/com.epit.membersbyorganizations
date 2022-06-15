@@ -2,14 +2,14 @@
 
 ![Screenshot](/images/screenshot.png)
 
-(*FIXME: In one or two paragraphs, describe what the extension does and why one would download it. *)
+Get list of organization's members and create a PDF file.
 
 The extension is licensed under [AGPL-3.0](LICENSE.txt).
 
 ## Requirements
 
 * PHP v7.2+
-* CiviCRM (*FIXME: Version number*)
+* CiviCRM v5.40+
 
 ## Installation (Web UI)
 
@@ -22,7 +22,7 @@ install it with the command-line tool [cv](https://github.com/civicrm/cv).
 
 ```bash
 cd <extension-dir>
-cv dl com.epit.membersbyorganizations@https://github.com/FIXME/com.epit.membersbyorganizations/archive/master.zip
+cv dl com.epit.membersbyorganizations@https://github.com/vinay-osseed/com.epit.membersbyorganizations/archive/master.zip
 ```
 
 ## Installation (CLI, Git)
@@ -31,14 +31,10 @@ Sysadmins and developers may clone the [Git](https://en.wikipedia.org/wiki/Git) 
 install it with the command-line tool [cv](https://github.com/civicrm/cv).
 
 ```bash
-git clone https://github.com/FIXME/com.epit.membersbyorganizations.git
+git clone https://github.com/vinay-osseed/com.epit.membersbyorganizations.git
 cv en membersbyorganizations
 ```
 
 ## Getting Started
 
-(* FIXME: Where would a new user navigate to get started? What changes would they see? *)
-
 ## Known Issues
-
-(* FIXME *)
