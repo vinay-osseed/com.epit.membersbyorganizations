@@ -29,6 +29,23 @@ function membersbyorganizations_civicrm_install() {
  * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_postInstall
  */
 function membersbyorganizations_civicrm_postInstall() {
+  /* Creating a message template. */
+  try {
+    $msg_template = civicrm_api3('MessageTemplate', 'getsingle', [
+      'return' => ["id"],
+      'msg_title' => "Demo msg title",
+    ]);
+  } catch (CiviCRM_API3_Exception $e) {
+    $params = [
+      'msg_title' => 'Demo msg title',
+      'msg_subject' => 'Demo msg subject',
+      'msg_text' => 'Demo message here',
+      'msg_html' => '<h1>Demo message here</h1>',
+      'is_active' => 1
+    ];
+    $result = civicrm_api3('MessageTemplate', 'create', $params);
+    CRM_Core_Error::debug_log_message("Exception" . $e->getMessage(), TRUE);
+  }
   _membersbyorganizations_civix_civicrm_postInstall();
 }
 
@@ -38,6 +55,18 @@ function membersbyorganizations_civicrm_postInstall() {
  * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_uninstall
  */
 function membersbyorganizations_civicrm_uninstall() {
+/* Deleting the message template created in the post install hook. */
+  try {
+    $msg_template = civicrm_api3('MessageTemplate', 'getsingle', [
+      'return' => ["id"],
+      'msg_title' => "Demo msg title",
+    ]);
+    $result = civicrm_api3('MessageTemplate', 'delete', [
+      'id' => $msg_template['id'],
+    ]);
+  } catch (CiviCRM_API3_Exception $e) {
+    CRM_Core_Error::debug_log_message("Exception" . $e->getMessage(), TRUE);
+  }
   _membersbyorganizations_civix_civicrm_uninstall();
 }
 
