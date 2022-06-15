@@ -95,14 +95,15 @@ function membersbyorganizations_civicrm_entityTypes(&$entityTypes) {
  *
  * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_navigationMenu
  */
-//function membersbyorganizations_civicrm_navigationMenu(&$menu) {
-//  _membersbyorganizations_civix_insert_navigation_menu($menu, 'Mailings', [
-//    'label' => E::ts('New subliminal message'),
-//    'name' => 'mailing_subliminal_message',
-//    'url' => 'civicrm/mailing/subliminal',
-//    'permission' => 'access CiviMail',
-//    'operator' => 'OR',
-//    'separator' => 0,
-//  ]);
-//  _membersbyorganizations_civix_navigationMenu($menu);
-//}
+function membersbyorganizations_civicrm_navigationMenu(&$menu) {
+  /* Adding a menu item to the navigation menu. */
+  _membersbyorganizations_civix_insert_navigation_menu($menu, 'Contacts', [
+    'label' => E::ts('List Organizations'),
+    'name' => 'list_oganizations',
+    'url' => 'civicrm/list-org',
+    'permission' => 'administer CiviCRM',
+    'operator' => 'OR',
+    'separator' => 0,
+  ]);
+  _membersbyorganizations_civix_navigationMenu($menu);
+}

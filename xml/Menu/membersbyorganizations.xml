@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<menu>
+  <item>
+    <path>civicrm/list-org</path>
+    <page_callback>CRM_Membersbyorganizations_Page_ListOrganizations</page_callback>
+    <title>ListOrganizations</title>
+    <access_arguments>access CiviCRM</access_arguments>
+  </item>
+</menu>
