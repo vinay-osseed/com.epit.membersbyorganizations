@@ -7,20 +7,28 @@ class CRM_Membersbyorganizations_Page_GereratePdfFile extends CRM_Core_Page{
     CRM_Utils_System::setTitle(E::ts('Download PDF'));
 
     if (isset($_GET['org_id'])) {
-      /* Getting the current date in the format of `dd-mm-yyyy` */
+      /* Get the current date, organization id, activity type id
+      and logged contact id. */
       $today = date('d-m-Y');
+      $org_id = $_GET['org_id'];
+      $logged_contact_id = CRM_Core_Session::getLoggedInContactID();
+      $activity_type = CRM_Core_PseudoConstant::getKey(
+        'CRM_Activity_BAO_Activity',
+        'activity_type_id',
+        'Print PDF Letter'
+      );
 
       /* Get the organization name and the list of employees of that organization. */
       $org_name = civicrm_api3('Contact', 'getsingle', [
         'return' => ["display_name"],
-        'id' => $_GET['org_id'],
+        'id' => $org_id,
         'contact_type' => "Organization",
       ])["display_name"];
 
       $contact_ids = civicrm_api3('Contact', 'get', [
         'sequential' => 1,
         'return' => ["display_name"],
-        'employer_id' => $_GET['org_id'],
+        'employer_id' => $org_id,
         'options' => ['sort' => "last_name"],
       ]);
 
@@ -35,21 +43,36 @@ class CRM_Membersbyorganizations_Page_GereratePdfFile extends CRM_Core_Page{
             </tr>
           </thead>
             <tbody>";
-      foreach ($contact_ids['values'] as $contact) {
-        $html .= "<tr scope='row'>
-          <td align='center' >". $contact['display_name'] ."</td>
-        </tr>";
-      }
+              foreach ($contact_ids['values'] as $contact) {
+                $html .= "<tr scope='row'>
+                  <td align='center' >". $contact['display_name'] ."</td>
+                </tr>";
+              }
       $html .= "</tbody></table>";
 
       /* Generate the pdf file. */
       $pdf_filename = "Employees.pdf";
-      $pdf_file_path = 'public://' . $pdf_filename;
-      file_put_contents($pdf_file_path, CRM_Utils_PDF_Utils::html2pdf($html, $pdf_filename, true));
+      $pdf_contents = CRM_Utils_PDF_Utils::html2pdf($html, $pdf_filename, true);
 
-      /* Assigning the values to the template file. */
-      $this->assign('org_id', $_GET['org_id']);
-      // $this->assign('pdf_file', Civi::paths()->getUrl($pdf_file_path));
+      /* Creating an activity and attaching the pdf file to that activity. */
+      $activity = civicrm_api3('Activity', 'create', [
+        'subject' => 'Download Employee PDF File',
+        'source_contact_id' => $logged_contact_id,
+        'activity_type_id' => $activity_type,
+        'target_contact_id' => $org_id,
+      ]);
+      $attachment = civicrm_api3('Attachment', 'create', [
+        'sequential' => 1,
+        'entity_table' => 'civicrm_activity',
+        'entity_id' => $activity['id'],
+        'name' => $pdf_filename,
+        'mime_type' => 'application/pdf',
+        'content' => $pdf_contents,
+      ]);
+      $pdf_url = $attachment['values'][0]['url'];
+
+      /* Redirecting the user to download the pdf file. */
+      CRM_Utils_System::redirect($pdf_url);
     }
     parent::run();
   }
