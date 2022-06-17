@@ -19,18 +19,21 @@ class CRM_Membersbyorganizations_Page_GereratePdfFile extends CRM_Core_Page{
       );
 
       /* Get the organization name and the list of employees of that organization. */
-      $org_name = civicrm_api3('Contact', 'getsingle', [
-        'return' => ["display_name"],
-        'id' => $org_id,
-        'contact_type' => "Organization",
-      ])["display_name"];
-
-      $contact_ids = civicrm_api3('Contact', 'get', [
+      $contacts = civicrm_api3('Relationship', 'get', [
         'sequential' => 1,
-        'return' => ["display_name"],
-        'employer_id' => $org_id,
-        'options' => ['sort' => "last_name"],
+        'return' => ["contact_id_a.display_name", "contact_id_b.display_name"],
+        'contact_id_b' => $org_id,
+        'contact_id_a.contact_type' => "Individual",
+        'options' => ['sort' => "contact_id_a.last_name"],
       ]);
+
+      /* If there are no employees found for the organization, then it will display a warning message
+      and redirect the user to the list of organization's page. */
+      if (!$contacts['count']) {
+        CRM_Core_Session::setStatus(" ", ts('No Employees Found.'), "warning");
+        CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/list-org', NULL, FALSE, NULL, FALSE, TRUE));
+      }
+      $org_name = $contacts['values'][0]['contact_id_b.display_name'];
 
       /* Generate the html code for the pdf file. */
       $html = "<h1 align='center'>". $org_name ."</h1>
@@ -43,9 +46,9 @@ class CRM_Membersbyorganizations_Page_GereratePdfFile extends CRM_Core_Page{
             </tr>
           </thead>
             <tbody>";
-              foreach ($contact_ids['values'] as $contact) {
+              foreach ($contacts['values'] as $contact) {
                 $html .= "<tr scope='row'>
-                  <td align='center' >". $contact['display_name'] ."</td>
+                  <td align='center' >". $contact['contact_id_a.display_name'] ."</td>
                 </tr>";
               }
       $html .= "</tbody></table>";
