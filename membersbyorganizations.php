@@ -39,8 +39,7 @@ function membersbyorganizations_civicrm_postInstall() {
     $params = [
       'msg_title' => 'Employee List of Orgnization',
       'msg_subject' => 'Employee List of Orgnization',
-      'msg_html' => '
-      <p>&nbsp;</p>
+      'msg_html' => '<p>&nbsp;</p>
       <p>&nbsp;</p>
       <p>&nbsp;</p>
       <p>&nbsp;</p>
@@ -52,7 +51,6 @@ function membersbyorganizations_civicrm_postInstall() {
       <p>&nbsp;</p>
       <h1 align="center">{ts 1=$org_name} %1 {/ts}</h1>
       <h3 align="center">Current Employees</h3>
-      <p>{foreach from=$members item=member} {/foreach}</p>
       <table border="1" style="width: 100%;border-collapse: collapse;">
         <thead>
           <tr>
@@ -62,11 +60,13 @@ function membersbyorganizations_civicrm_postInstall() {
           </tr>
         </thead>
         <tbody>
+        {foreach from=$members item=member}
           <tr scope="row">
             <td align="center">{$member.first_name}</td>
             <td align="center">{$member.last_name}</td>
             <td align="center">{$member.membership_id}</td>
           </tr>
+        {/foreach}
         </tbody>
       </table>',
       'is_active' => 1
