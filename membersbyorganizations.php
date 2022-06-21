@@ -39,16 +39,13 @@ function membersbyorganizations_civicrm_postInstall() {
     $params = [
       'msg_title' => 'Employee List of Orgnization',
       'msg_subject' => 'Employee List of Orgnization',
-      'msg_html' => '<p>&nbsp;</p>
-      <p>&nbsp;</p>
-      <p>&nbsp;</p>
-      <p>&nbsp;</p>
-      <p>&nbsp;</p>
-      <p>&nbsp;</p>
-      <p>&nbsp;</p>
-      <p>&nbsp;</p>
-      <hr />
-      <p>&nbsp;</p>
+      'msg_html' => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+      <html xmlns="http://www.w3.org/1999/xhtml">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title></title>
+      </head>
+      <body>
       <h1 align="center">{ts 1=$org_name} %1 {/ts}</h1>
       <h3 align="center">Current Employees</h3>
       <table border="1" style="width: 100%;border-collapse: collapse;">
@@ -68,7 +65,9 @@ function membersbyorganizations_civicrm_postInstall() {
           </tr>
         {/foreach}
         </tbody>
-      </table>',
+      </table>
+      </body>
+      </html>',
       'is_active' => 1
     ];
     $result = civicrm_api3('MessageTemplate', 'create', $params);
@@ -175,74 +174,82 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
     return;
   }
 
-    $org_id = $params['contact_id'];
-    try {
-      /* Get the organization contact and the message template. */
-      $org_contact = civicrm_api3('Contact', 'getsingle', [
-        'id' => $org_id,
-        'contact_type' => "Organization",
-      ]);
-      $msg_tpl = civicrm_api3('MessageTemplate', 'getsingle', [
-        'msg_title' => "Employee List of Orgnization",
-      ]);
+  $org_id = $params['contact_id'];
+  try {
+    /* Get the organization contact and the message template. */
+    $org_contact = civicrm_api3('Contact', 'getsingle', [
+      'id' => $org_id,
+      'contact_type' => "Organization",
+    ]);
+    $msg_tpl = civicrm_api3('MessageTemplate', 'getsingle', [
+      'msg_title' => "Employee List of Orgnization",
+    ]);
 
-      $pdf_name = 'Employees.pdf';
-      $tpl_params = [
-        'org_name' => $org_contact['display_name'],
-      ];
-
-      /* Get the list of all the employees of the organization. */
-      $contacts = civicrm_api3('Contact', 'get', [
-        'sequential' => 1,
-        'return' => ["first_name", "last_name"],
-        'contact_type' => "Individual",
-        'api.Membership.get' => [
-            'status_id' => ['BETWEEN' => [
-                "2", // current
-                "5", // pending
-            ]],
-            'relationship_name' => "Employee of",
-        ],
-        'options' => ['sort' => "last_name"],
-      ]);
-
-      $members = [];
-      if ($contacts['count']) {
-        foreach ($contacts['values'] as $contact) {
-            if ($contact['api.Membership.get']['count']) {
-                $members[] = [
-                    'first_name' => $contact['first_name'],
-                    'last_name' => $contact['last_name'],
-                    'membership_id' => $contact['api.Membership.get']['id'],
-                ];
-            }
-        }
-        $tpl_params['members'] = $members;
-    }
-
-    $send_tpl_params = [
-        'messageTemplateID' =>(int) $msg_tpl['id'],
-        'tplParams' => $tpl_params,
-        'PDFFilename' => $pdf_name,
+    $pdf_name = 'Employees.pdf';
+    $tpl_params = [
+      'org_name' => $org_contact['display_name'],
     ];
 
-    list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate($send_tpl_params);
+    /* Get the list of all the employees of the organization. */
+    $contacts = civicrm_api3('Contact', 'get', [
+      'sequential' => 1,
+      'return' => ["first_name", "last_name"],
+      'contact_type' => "Individual",
+      'api.Membership.get' => [
+          'status_id' => ['BETWEEN' => [
+              "2", // Current
+              "5", // Pending
+          ]],
+          'relationship_name' => "Employee of",
+      ],
+      'api.Relationship.get' => [
+        'sequential' => 1,
+        'relationship_type_id' => "5" // Employee of
+      ],
+      'options' => ['sort' => "last_name"],
+    ]);
 
-    /* This is a temporary solution to get the html content of the message template. */
-    $session = CRM_Core_Session::singleton();
-    $session->set('tpl_html',$html);
-
-    // $filename = CRM_Utils_Mail::appendPDF($pdf_name, $html, null)['fullPath'] ?? '';
-    // $params['attachFile_2'] = [
-    //     'uri' => $filename,
-    //     'type' => 'application/pdf',
-    //     'location' => $filename,
-    //     'upload_date' => date('YmdHis'),
-    // ];
-
-    } catch (CiviCRM_API3_Exception $ex) {
-      CRM_Core_Error::debug_log_message("Hook `membersbyorganizations_civicrm_pre` Exception :- " . $ex->getMessage(), TRUE);
+    $members = [];
+    if ($contacts['count']) {
+      foreach ($contacts['values'] as $contact) {
+          if ($contact['api.Membership.get']['count']) {
+            /* Check if the contact is an employee of the organization. */
+            if ($contact['api.Relationship.get']['values'][0]['contact_id_b'] == $org_id) {
+              $members[] = [
+                  'first_name' => $contact['first_name'],
+                  'last_name' => $contact['last_name'],
+                  'membership_id' => $contact['api.Membership.get']['id'],
+              ];
+            }
+          }
+        }
+      $tpl_params['members'] = $members;
     }
+
+  /* Send the message template parameters. */
+  $send_tpl_params = [
+      'messageTemplateID' =>(int) $msg_tpl['id'],
+      'tplParams' => $tpl_params,
+      'PDFFilename' => $pdf_name,
+  ];
+
+  list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate($send_tpl_params);
+
+  /* This is a temporary solution to get the html content of the message template. */
+  $session = CRM_Core_Session::singleton();
+  $session->set('tpl_html',$html);
+
+  // $filename = CRM_Utils_Mail::appendPDF($pdf_name, $html, null)['fullPath'] ?? '';
+  // $params['attachFile_2'] = [
+  //     'uri' => $filename,
+  //     'type' => 'application/pdf',
+  //     'location' => $filename,
+  //     'upload_date' => date('YmdHis'),
+  // ];
+
+  } catch (CiviCRM_API3_Exception $ex) {
+    CRM_Core_Error::debug_log_message("Hook `membersbyorganizations_civicrm_pre` Exception :- " . $ex->getMessage(), TRUE);
+  }
 }
 
 /**
@@ -251,10 +258,11 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
  * Replace invoice template with custom content from file
  */
 function membersbyorganizations_civicrm_alterMailContent(&$content) {
-  if ($content['workflow_name'] === 'contribution_invoice_receipt') {
-    /* This is a temporary solution to get the html content of the message template. */
-    $session = CRM_Core_Session::singleton();
-    $tpl_html = $session->get('tpl_html');
-    $content['html'] .= $tpl_html;
+  if ($content['workflow_name'] != 'contribution_invoice_receipt') {
+    return;
   }
+  /* This is a temporary solution to get the html content of the message template. */
+  $session = CRM_Core_Session::singleton();
+  $tpl_html = $session->get('tpl_html');
+  $content['html'] .= '<p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>' . $tpl_html;
 }
