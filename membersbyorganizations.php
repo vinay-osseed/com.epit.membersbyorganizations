@@ -39,6 +39,7 @@ function membersbyorganizations_civicrm_postInstall() {
     $params = [
       'msg_title' => 'Employee List of Orgnization',
       'msg_subject' => 'Employee List of Orgnization',
+      'workflow_id' => 1,
       'msg_html' => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
       <html xmlns="http://www.w3.org/1999/xhtml">
       <head>
@@ -230,6 +231,7 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
   $send_tpl_params = [
       'messageTemplateID' =>(int) $msg_tpl['id'],
       'tplParams' => $tpl_params,
+      'tokenContext' => ['contactId' => $org_id, 'smarty' => TRUE],
       'PDFFilename' => $pdf_name,
   ];
 
