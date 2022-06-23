@@ -44,18 +44,37 @@ class CRM_Membersbyorganizations_Form_ListOrganizations extends CRM_Core_Form {
       'contact_type' => "Organization",
     ];
 
+    $fromClause = "FROM civicrm_contact ";
+
+    $whereClause = "WHERE civicrm_contact.contact_type = %1
+      AND civicrm_contact.is_deleted = 0 ";
+
+    $pager_params = [
+      1 => [$param['contact_type'], 'String']
+    ];
+
     /* If the user enters a name in the search box, the
     list will be filtered by that name. */
     if(isset($_GET['display_name']) && !empty($_GET['display_name'])){
-      $param['display_name'] = ['LIKE' => $_GET['display_name']];
+      $param['display_name'] = ['LIKE' => '%' . $_GET['display_name'] . '%'];
+      // $param['options']['limit'] = "";
+      $whereClause .= "AND civicrm_contact.display_name LIKE \"%" . $_GET['display_name'] ."%\"";
     }
 
     /* If the user selects a tag from the dropdown, the
     list will be filtered by that tag. */
     if(isset($_GET['tag_id']) && !empty($_GET['tag_id'])){
       $param['tag'] = $_GET['tag_id'];
+      // $param['options']['limit'] = "";
+      // $whereClause .= "AND (?) = \"%" . $_GET['tag_id'] ."%\"";
     }
 
+    $this->pager($fromClause, $whereClause, $pager_params);
+
+    list($offset, $rowCount) = $this->_pager->getOffsetAndRowCount();
+    if (!isset($param['options']['limit'])) {
+      $param['options'] = ['limit' => $rowCount, 'offset' => $offset];
+    }
 
     /* Get a list of all organizations. */
     $orgs = civicrm_api3('Contact', 'get', $param);
@@ -69,6 +88,31 @@ class CRM_Membersbyorganizations_Form_ListOrganizations extends CRM_Core_Form {
 
     /* Assigning the value of API result to the template variable 'orgs'. */
     $this->assign('orgs', $orgs['values']);
+  }
+
+  /**
+   * @param $fromClause
+   * @param $whereClause
+   * @param array $whereParams
+   */
+  public function pager($fromClause, $whereClause, $whereParams) {
+
+    $params = [];
+    $params['status'] = ts('Group') . ' %%StatusMessage%%';
+    $params['csvString'] = NULL;
+    $params['buttonTop'] = 'PagerTopButton';
+    $params['buttonBottom'] = 'PagerBottomButton';
+    $params['rowCount'] = $this->get(CRM_Utils_Pager::PAGE_ROWCOUNT);
+
+    if (!$params['rowCount']) {
+      $params['rowCount'] = Civi::settings()->get('default_pager_size');
+    }
+
+    $query = "SELECT count( civicrm_contact.id ) $fromClause $whereClause";
+    $params['total'] = CRM_Core_DAO::singleValueQuery($query, $whereParams);
+
+    $this->_pager = new CRM_Utils_Pager($params);
+    $this->assign_by_ref('pager', $this->_pager);
   }
 
 }
