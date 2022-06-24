@@ -47,8 +47,8 @@
         <tr>
           <td><a href="/civicrm/contact/view?reset=1&cid={$org.contact_id}"><div class="icon crm-icon Organization-icon"></div>{ts 1=$org.display_name} %1 {/ts}</a></td>
           <td>
-            <span class="action-item crm-hover-button no-popup" title="Genarate PDF file of all organization's member.">
-              <a href="/civicrm/genarate-pdf?org_id={$org.contact_id}">{ts} Genarate PDF {/ts}</a>
+            <span class="action-item crm-hover-button no-popup" title="Generate PDF file of all organization's member.">
+              <a href="/civicrm/generate-pdf?org_id={$org.contact_id}">{ts} Generate PDF {/ts}</a>
             </span>
           </td>
         </tr>

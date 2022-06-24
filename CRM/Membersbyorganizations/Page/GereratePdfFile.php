@@ -24,7 +24,7 @@ class CRM_Membersbyorganizations_Page_GereratePdfFile extends CRM_Core_Page{
         'return' => ["contact_id_a.display_name", "contact_id_b.display_name"],
         'contact_id_b' => $org_id,
         'contact_id_a.contact_type' => "Individual",
-        'options' => ['sort' => "contact_id_a.last_name"],
+        'options' => ['sort' => "contact_id_a.last_name", 'limit' => ""],
       ]);
 
       /* If there are no employees found for the organization, then it will display a warning message

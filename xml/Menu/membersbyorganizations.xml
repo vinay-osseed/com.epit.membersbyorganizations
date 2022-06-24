@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <menu>
   <item>
-    <path>civicrm/genarate-pdf</path>
+    <path>civicrm/generate-pdf</path>
     <page_callback>CRM_Membersbyorganizations_Page_GereratePdfFile</page_callback>
     <title>GereratePdfFile</title>
     <access_arguments>access CiviCRM</access_arguments>

@@ -207,7 +207,7 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
         'sequential' => 1,
         'relationship_type_id' => "5" // Employee of
       ],
-      'options' => ['sort' => "last_name"],
+      'options' => ['sort' => "last_name", 'limit' => ""],
     ]);
 
     $members = [];
