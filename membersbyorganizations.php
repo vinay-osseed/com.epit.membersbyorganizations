@@ -235,19 +235,17 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
       'PDFFilename' => $pdf_name,
   ];
 
-  list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate($send_tpl_params);
-
   /* This is a temporary solution to get the html content of the message template. */
   $session = CRM_Core_Session::singleton();
-  $session->set('tpl_html',$html);
 
-  // $filename = CRM_Utils_Mail::appendPDF($pdf_name, $html, null)['fullPath'] ?? '';
-  // $params['attachFile_2'] = [
-  //     'uri' => $filename,
-  //     'type' => 'application/pdf',
-  //     'location' => $filename,
-  //     'upload_date' => date('YmdHis'),
-  // ];
+  /* If there are no members of the organization, then the message template is not sent. */
+  if (empty($tpl_params['members'])) {
+    $session->reset(['tpl_html']);
+    return;
+  }
+
+  list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate($send_tpl_params);
+  $session->set('tpl_html',$html);
 
   } catch (CiviCRM_API3_Exception $ex) {
     CRM_Core_Error::debug_log_message("Hook `membersbyorganizations_civicrm_pre` Exception :- " . $ex->getMessage(), TRUE);
@@ -263,8 +261,14 @@ function membersbyorganizations_civicrm_alterMailContent(&$content) {
   if ($content['workflow_name'] != 'contribution_invoice_receipt') {
     return;
   }
+
   /* This is a temporary solution to get the html content of the message template. */
   $session = CRM_Core_Session::singleton();
+
+  if ($session->isEmpty()) {
+    return;
+  }
+
   $tpl_html = $session->get('tpl_html');
   $content['html'] .= '<p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>' . $tpl_html;
 }
