@@ -1,7 +1,7 @@
 <?php
 use CRM_Membersbyorganizations_ExtensionUtil as E;
 
-class CRM_Membersbyorganizations_Page_GereratePdfFile extends CRM_Core_Page{
+class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
 
   public function run(){
     CRM_Utils_System::setTitle(E::ts('Download PDF'));
@@ -18,22 +18,50 @@ class CRM_Membersbyorganizations_Page_GereratePdfFile extends CRM_Core_Page{
         'Print PDF Letter'
       );
 
-      /* Get the organization name and the list of employees of that organization. */
-      $contacts = civicrm_api3('Relationship', 'get', [
-        'sequential' => 1,
-        'return' => ["contact_id_a.display_name", "contact_id_b.display_name"],
-        'contact_id_b' => $org_id,
-        'contact_id_a.contact_type' => "Individual",
-        'options' => ['sort' => "contact_id_a.last_name", 'limit' => ""],
+      /* Get the organization name. */
+      $org = civicrm_api3('Contact', 'getsingle', [
+        'return' => ["display_name"],
+        'id' => $org_id,
+        'contact_type' => "Organization",
       ]);
+      $org_name = $org['display_name'];
+
+      /* Get the list of all the employees of the organization. */
+      $contacts = civicrm_api3('Contact', 'get', [
+        'sequential' => 1,
+        'return' => ["display_name"],
+        'contact_type' => "Individual",
+        'api.Membership.get' => [
+            'status_id' => "2", // Current
+            'relationship_name' => "Employee of",
+        ],
+        'api.Relationship.get' => [
+          'sequential' => 1,
+          'relationship_type_id' => "5" // Employee of
+        ],
+        'options' => ['sort' => "last_name", 'limit' => ""],
+      ]);
+
+      $members = [];
+      if ($contacts['count']) {
+        foreach ($contacts['values'] as $contact) {
+            if ($contact['api.Membership.get']['count']) {
+              /* Check if the contact is an employee of the organization. */
+              if ($contact['api.Relationship.get']['values'][0]['contact_id_b'] == $org_id) {
+                $members[] = [
+                    'display_name' => $contact['display_name'],
+                ];
+              }
+            }
+          }
+        }
 
       /* If there are no employees found for the organization, then it will display a warning message
       and redirect the user to the list of organization's page. */
-      if (!$contacts['count']) {
+      if (empty($members)) {
         CRM_Core_Session::setStatus(" ", ts('No Employees Found.'), "warning");
         CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/list-org', NULL, FALSE, NULL, FALSE, TRUE));
       }
-      $org_name = $contacts['values'][0]['contact_id_b.display_name'];
 
       /* Generate the html code for the pdf file. */
       $html = "<h1 align='center'>". $org_name ."</h1>
@@ -46,11 +74,11 @@ class CRM_Membersbyorganizations_Page_GereratePdfFile extends CRM_Core_Page{
             </tr>
           </thead>
             <tbody>";
-              foreach ($contacts['values'] as $contact) {
-                $html .= "<tr scope='row'>
-                  <td align='center' >". $contact['contact_id_a.display_name'] ."</td>
-                </tr>";
-              }
+        foreach ($members as $member) {
+          $html .= "<tr scope='row'>
+              <td align='center' >". $member['display_name'] ."</td>
+            </tr>";
+        }
       $html .= "</tbody></table>";
 
       /* Generate the pdf file. */

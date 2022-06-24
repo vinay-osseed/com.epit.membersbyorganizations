@@ -2,8 +2,8 @@
 <menu>
   <item>
     <path>civicrm/generate-pdf</path>
-    <page_callback>CRM_Membersbyorganizations_Page_GereratePdfFile</page_callback>
-    <title>GereratePdfFile</title>
+    <page_callback>CRM_Membersbyorganizations_Page_GeneratePdfFile</page_callback>
+    <title>GeneratePdfFile</title>
     <access_arguments>access CiviCRM</access_arguments>
   </item>
   <item>
