@@ -37,14 +37,12 @@ cv en membersbyorganizations
 
 ## Getting Started
 
-1. After installing the extension can list the `organzaions` from contats here `/civicrm/list-org` or can use menu from `Contcats > List Organizations`.
+1. After installing the extension can list the `organizations` from contacts here `/civicrm/list-org` or can use menu from `Contacts > List Organizations`.
 
-2. This extension create a new `Employee List of Orgnization` message template in CiviCRM to extend the `Contributions - Invoice`.
+2. This extension create a new `Employee List of Organizations` message template in CiviCRM to extend the `Contributions - Invoice`.
 
-3. On this `List Organizations` page you can see list of organizations with `Genarate PDF` button in front of each organization to create a PDF file containing the list of all members of orgazation to download.
+3. On this `List Organizations` page you can see list of organizations with `Generate PDF` button in front of each organization to create a PDF file containing the list of all members of organization to download.
 
 4. When a new contribution is added for an organization, an extra page which lists (in alphabetical order of last_name) the `first name, last name and membership no` of those `Individual Contacts` who are employees of the organization (relationship: employee of) and are `current` or `pending` members.
 
 5. Once contribution invoice is generated, you can send it by email with that extra information of members of organization with it.
-
-## Known Issues
