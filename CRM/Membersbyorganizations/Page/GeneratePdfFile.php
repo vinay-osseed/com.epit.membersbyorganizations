@@ -26,18 +26,35 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
       ]);
       $org_name = $org['display_name'];
 
+      /* Getting the membership type id of the organization. */
+      $membership_type = civicrm_api3('MembershipType', 'get', [
+        'sequential' => 1,
+        'return' => ["id"],
+        'member_of_contact_id' => $org_id,
+        'relationship_type_id' => 5, // Employee of
+        'relationship_direction' => "a_b",
+        'is_active' => 1,
+      ]);
+
+      /* Checking if the membership type is found or not. */
+      if (!$membership_type['count'] || $membership_type['is_error']) {
+        CRM_Core_Session::setStatus(" ", ts('Membership Type Not Found.'), "warning");
+        CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/list-org', NULL, FALSE, NULL, FALSE, TRUE));
+      }
+
       /* Get the list of all the employees of the organization. */
       $contacts = civicrm_api3('Contact', 'get', [
         'sequential' => 1,
         'return' => ["display_name"],
         'contact_type' => "Individual",
         'api.Membership.get' => [
-            'status_id' => "2", // Current
+            'status_id' => 2, // Current
             'relationship_name' => "Employee of",
+            'membership_type_id' => $membership_type['id']
         ],
         'api.Relationship.get' => [
           'sequential' => 1,
-          'relationship_type_id' => "5" // Employee of
+          'relationship_type_id' => 5 // Employee of
         ],
         'options' => ['sort' => "last_name", 'limit' => ""],
       ]);
@@ -47,10 +64,12 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         foreach ($contacts['values'] as $contact) {
             if ($contact['api.Membership.get']['count']) {
               /* Check if the contact is an employee of the organization. */
-              if ($contact['api.Relationship.get']['values'][0]['contact_id_b'] == $org_id) {
-                $members[] = [
-                    'display_name' => $contact['display_name'],
-                ];
+              foreach ($contact['api.Relationship.get']['values'] as $con) {
+                if ($con['contact_id_b'] == $org_id) {
+                  $members[] = [
+                      'display_name' => $contact['display_name'],
+                  ];
+                }
               }
             }
           }

@@ -191,6 +191,21 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
       'org_name' => $org_contact['display_name'],
     ];
 
+    /* Getting the membership type id of the organization. */
+    $membership_type = civicrm_api3('MembershipType', 'get', [
+      'sequential' => 1,
+      'return' => ["id"],
+      'member_of_contact_id' => $org_id,
+      'relationship_type_id' => 5, // Employee of
+      'relationship_direction' => "a_b",
+      'is_active' => 1,
+    ]);
+
+    /* Checking if the membership type is found or not. */
+    if (!$membership_type['count'] || $membership_type['is_error']) {
+      return;
+    }
+
     /* Get the list of all the employees of the organization. */
     $contacts = civicrm_api3('Contact', 'get', [
       'sequential' => 1,
@@ -198,14 +213,15 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
       'contact_type' => "Individual",
       'api.Membership.get' => [
           'status_id' => ['BETWEEN' => [
-              "2", // Current
-              "5", // Pending
+              2, // Current
+              5, // Pending
           ]],
+          'membership_type_id' => $membership_type['id'],
           'relationship_name' => "Employee of",
       ],
       'api.Relationship.get' => [
         'sequential' => 1,
-        'relationship_type_id' => "5" // Employee of
+        'relationship_type_id' => 5 // Employee of
       ],
       'options' => ['sort' => "last_name", 'limit' => ""],
     ]);
@@ -215,12 +231,14 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
       foreach ($contacts['values'] as $contact) {
           if ($contact['api.Membership.get']['count']) {
             /* Check if the contact is an employee of the organization. */
-            if ($contact['api.Relationship.get']['values'][0]['contact_id_b'] == $org_id) {
-              $members[] = [
+            foreach ($contact['api.Relationship.get']['values'] as $con) {
+              if ($con['contact_id_b'] == $org_id) {
+                $members[] = [
                   'first_name' => $contact['first_name'],
                   'last_name' => $contact['last_name'],
                   'membership_id' => $contact['api.Membership.get']['id'],
-              ];
+                ];
+              }
             }
           }
         }
