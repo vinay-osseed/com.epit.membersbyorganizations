@@ -47,6 +47,7 @@ function membersbyorganizations_civicrm_postInstall() {
         <title></title>
       </head>
       <body>
+      <div style="page-break-before: always">
       <h1 align="center">{ts 1=$org_name} %1 {/ts}</h1>
       <h3 align="center">Current Employees</h3>
       <table border="1" style="width: 100%;border-collapse: collapse;">
@@ -67,6 +68,7 @@ function membersbyorganizations_civicrm_postInstall() {
         {/foreach}
         </tbody>
       </table>
+      </div>
       </body>
       </html>',
       'is_active' => 1
@@ -288,5 +290,5 @@ function membersbyorganizations_civicrm_alterMailContent(&$content) {
   }
 
   $tpl_html = $session->get('tpl_html');
-  $content['html'] .= '<p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>' . $tpl_html;
+  $content['html'] .= $tpl_html;
 }
