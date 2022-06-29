@@ -184,68 +184,68 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
       'id' => $org_id,
       'contact_type' => "Organization",
     ]);
+    $org_name = $org_contact['display_name'];
+
     $msg_tpl = civicrm_api3('MessageTemplate', 'getsingle', [
       'msg_title' => "Employee List of Orgnization",
     ]);
 
     $pdf_name = 'Employees.pdf';
     $tpl_params = [
-      'org_name' => $org_contact['display_name'],
+      'org_name' => $org_name,
     ];
-
-    /* Getting the membership type id of the organization. */
-    $membership_type = civicrm_api3('MembershipType', 'get', [
-      'sequential' => 1,
-      'return' => ["id"],
-      'member_of_contact_id' => $org_id,
-      'relationship_type_id' => 5, // Employee of
-      'relationship_direction' => "a_b",
-      'is_active' => 1,
-    ]);
-
-    /* Checking if the membership type is found or not. */
-    if (!$membership_type['count'] || $membership_type['is_error']) {
-      return;
-    }
-
-    /* Get the list of all the employees of the organization. */
-    $contacts = civicrm_api3('Contact', 'get', [
-      'sequential' => 1,
-      'return' => ["first_name", "last_name"],
-      'contact_type' => "Individual",
-      'api.Membership.get' => [
-          'status_id' => ['BETWEEN' => [
-              2, // Current
-              5, // Pending
-          ]],
-          'membership_type_id' => $membership_type['id'],
-          'relationship_name' => "Employee of",
-      ],
-      'api.Relationship.get' => [
-        'sequential' => 1,
-        'relationship_type_id' => 5 // Employee of
-      ],
-      'options' => ['sort' => "last_name", 'limit' => ""],
-    ]);
-
     $members = [];
-    if ($contacts['count']) {
-      foreach ($contacts['values'] as $contact) {
-          if ($contact['api.Membership.get']['count']) {
-            /* Check if the contact is an employee of the organization. */
-            foreach ($contact['api.Relationship.get']['values'] as $con) {
-              if ($con['contact_id_b'] == $org_id) {
-                $members[] = [
-                  'first_name' => $contact['first_name'],
-                  'last_name' => $contact['last_name'],
-                  'membership_id' => $contact['api.Membership.get']['id'],
-                ];
-              }
-            }
-          }
+
+    /* Get the membership id of the employee. */
+    $member_sql = "SELECT
+    contact_a.display_name AS `display_name`,
+    civicrm_membership.id AS `membership_id`,
+    civicrm_membership.owner_membership_id AS `owner_membership_id`
+    FROM civicrm_contact contact_a
+    LEFT JOIN civicrm_membership ON civicrm_membership.contact_id = contact_a.id
+    LEFT JOIN civicrm_contribution_recur ccr ON (civicrm_membership.contribution_recur_id = ccr.id)
+    INNER JOIN civicrm_membership_status ON civicrm_membership.status_id = civicrm_membership_status.id
+    INNER JOIN civicrm_membership_type ON civicrm_membership.membership_type_id = civicrm_membership_type.id
+    WHERE (contact_a.display_name LIKE '%{$org_name}%%'
+    AND contact_a.contact_type IN ('Organization')
+    AND civicrm_membership.status_id IN ('2', '5') -- Current or Pending
+    AND civicrm_membership.is_test = 0)
+    AND(1) AND (contact_a.is_deleted = 0)
+    GROUP BY civicrm_membership.id;";
+    $dao = CRM_Core_DAO::executeQuery($member_sql, CRM_Core_DAO::$_nullArray);
+
+    while ($dao->fetch()) {
+      /* Check the membership id of the employee. */
+      $id = (!$dao->owner_membership_id) ? $dao->membership_id : $dao->owner_membership_id;
+      if(empty($id)){
+        continue;
+      }
+
+      /* Get the contact id of the employee. */
+      $sql = "SELECT contact_id FROM `civicrm_membership` WHERE ( `civicrm_membership`.`id` = {$id} )";
+      $inner_dao = CRM_Core_DAO::executeQuery($sql, CRM_Core_DAO::$_nullArray);
+
+      while ($inner_dao->fetch()) {
+        /* Fetch contact details of the employee. */
+        $member = civicrm_api3('Contact', 'getsingle', [
+          'return' => ["display_name", "first_name", "last_name", "sort_name"],
+          'id' => $inner_dao->contact_id,
+        ]);
+        /* If the first and last name is empty, then the display name is assigned as first name. */
+        if (empty($member['first_name']) && empty($member['last_name'])) {
+          $member['first_name'] = $member['display_name'];
         }
-      $tpl_params['members'] = $members;
+        $members[$member['sort_name']] = [
+          'first_name' => $member['first_name'],
+          'last_name' => $member['last_name'],
+          'membership_id' => $id
+        ];
+      }
     }
+
+    /* Sorting the array by key `sort_name`. */
+    ksort($members,SORT_REGULAR);
+    $tpl_params['members'] = $members;
 
   /* Send the message template parameters. */
   $send_tpl_params = [
