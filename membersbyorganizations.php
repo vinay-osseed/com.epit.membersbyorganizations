@@ -243,6 +243,34 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
       }
     }
 
+    $rel_contact = civicrm_api3('Relationship', 'get', [
+      'sequential' => 1,
+      'return' => [
+        "id",
+        "contact_id_a.display_name",
+        "contact_id_a.sort_name",
+        "contact_id_a.first_name",
+        "contact_id_a.last_name"
+      ],
+      'contact_id_b' => $org_id,
+      'options' => ['limit' => ""]
+    ]);
+
+    if ($rel_contact['count']) {
+      foreach ($rel_contact['values'] as $con) {
+        /* If the first and last name is empty, then the display name is assigned as first name. */
+        if (empty($con['contact_id_a.first_name']) && empty($con['contact_id_a.last_name'])) {
+          $con['contact_id_a.first_name'] = $con['contact_id_a.display_name'];
+        }
+        $old_id = $members[$con['contact_id_a.sort_name']]['membership_id'];
+        $members[$con['contact_id_a.sort_name']] = [
+          'first_name' => $con['contact_id_a.first_name'],
+          'last_name' => $con['contact_id_a.last_name'],
+          'membership_id' => isset($old_id) ? $old_id : $con['id'],
+        ];
+      }
+    }
+
     /* Sorting the array by key `sort_name`. */
     ksort($members,SORT_REGULAR);
     $tpl_params['members'] = $members;

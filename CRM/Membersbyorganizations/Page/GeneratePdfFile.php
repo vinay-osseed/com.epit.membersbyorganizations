@@ -73,6 +73,21 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         }
       }
 
+      $rel_contact = civicrm_api3('Relationship', 'get', [
+        'sequential' => 1,
+        'return' => ["contact_id_a.display_name", "contact_id_a.sort_name"],
+        'contact_id_b' => $org_id,
+        'options' => ['limit' => ""]
+      ]);
+
+      if ($rel_contact['count']) {
+        foreach ($rel_contact['values'] as $con) {
+          $members[$con['contact_id_a.sort_name']] = [
+            'display_name' => $con['contact_id_a.display_name'],
+          ];
+        }
+      }
+
       /* Sorting the array by key `sort_name`. */
       ksort($members,SORT_REGULAR);
 
