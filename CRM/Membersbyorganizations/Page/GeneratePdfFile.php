@@ -25,71 +25,32 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         'contact_type' => "Organization",
       ]);
       $org_name = $org['display_name'];
+      $name = CRM_Utils_Type::escape($org_name, 'String');
       $members = [];
 
-      /* Get the membership id and display name of the employee. */
-      $member_sql = "SELECT
-      contact_a.display_name AS `display_name`,
-      civicrm_membership.id AS `membership_id`,
-      civicrm_membership.owner_membership_id AS `owner_membership_id`
-      FROM civicrm_contact contact_a
-      LEFT JOIN civicrm_membership ON civicrm_membership.contact_id = contact_a.id
-      LEFT JOIN civicrm_contribution_recur ccr ON (civicrm_membership.contribution_recur_id = ccr.id)
-      INNER JOIN civicrm_membership_status ON civicrm_membership.status_id = civicrm_membership_status.id
-      INNER JOIN civicrm_membership_type ON civicrm_membership.membership_type_id = civicrm_membership_type.id
-      WHERE (contact_a.display_name LIKE %1
-      AND contact_a.contact_type IN ('Organization')
-      AND civicrm_membership.status_id IN ('2')  -- Current
-      AND civicrm_membership_status.is_current_member = 1
-      AND civicrm_membership.is_test = 0)
-      AND(1) AND (contact_a.is_deleted = 0)
-      GROUP BY civicrm_membership.id;";
-
-      $name = CRM_Utils_Type::escape($org_name, 'String');
-      $params = [1 => ["%{$name}%%", 'String']];
-      $dao = CRM_Core_DAO::executeQuery($member_sql, $params);
-
-      while ($dao->fetch()) {
-        /* Check the membership id of the employee. */
-        $id = (!$dao->owner_membership_id) ? $dao->membership_id : $dao->owner_membership_id;
-        if(empty($id)){
-          continue;
-        }
-
-        /* Get the contact id of the employee. */
-        $sql = "SELECT contact_id FROM `civicrm_membership` WHERE ( `civicrm_membership`.`id` = {$id} )";
-        $inner_dao = CRM_Core_DAO::executeQuery($sql, CRM_Core_DAO::$_nullArray);
-
-        while ($inner_dao->fetch()) {
-          /* Fetch contact details of the employee. */
-          $member = civicrm_api3('Contact', 'getsingle', [
-            'return' => ["display_name", "first_name", "last_name", "sort_name"],
-            'id' => $inner_dao->contact_id,
-          ]);
-
-          $members[$member['sort_name']] = [
-            'display_name' => $member['display_name'],
-          ];
-        }
+      /* Get a list of contacts who are employees of the organization. */
+      $rel_contacts = \Civi\Api4\Contact::get()
+        ->addSelect('display_name', 'sort_name')
+        ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'id'])
+        ->addJoin('ContributionRecur AS contribution_recur', 'LEFT', ['membership.contribution_recur_id', '=', 'contribution_recur.id'])
+        ->addJoin('MembershipStatus AS membership_status', 'LEFT', ['membership.status_id', '=', 'membership_status.id'])
+        ->addJoin('Relationship AS relationship', 'LEFT', ['relationship.contact_id_a', '=', 'id'])
+        ->addJoin('Contact AS contact', 'LEFT', ['contact.id', '=', 'relationship.contact_id_b'])
+        ->addGroupBy('id')
+        ->addWhere('contact.sort_name', 'LIKE', "%{$name}%")
+        ->addWhere('relationship.is_active', '=', TRUE)
+        ->addWhere('contact.is_deleted', '=', FALSE)
+        ->addWhere('relationship.relationship_type_id', '=', 5) // Employee of
+        ->addWhere('membership_status.is_current_member', '=', TRUE) // Current
+        ->addWhere('membership.is_test', '=', FALSE)
+        ->addWhere('is_deleted', '=', FALSE)
+        ->addOrderBy('sort_name', 'ASC')
+        ->execute();
+      foreach ($rel_contacts as $contact) {
+        $members[$contact['sort_name']] = [
+          'display_name' => $contact['display_name'],
+        ];
       }
-
-      $rel_contact = civicrm_api3('Relationship', 'get', [
-        'sequential' => 1,
-        'return' => ["contact_id_a.display_name", "contact_id_a.sort_name"],
-        'contact_id_b' => $org_id,
-        'options' => ['limit' => ""]
-      ]);
-
-      if ($rel_contact['count']) {
-        foreach ($rel_contact['values'] as $con) {
-          $members[$con['contact_id_a.sort_name']] = [
-            'display_name' => $con['contact_id_a.display_name'],
-          ];
-        }
-      }
-
-      /* Sorting the array by key `sort_name`. */
-      ksort($members,SORT_REGULAR);
 
       /* If there are no employees found for the organization, then it will display a warning message
       and redirect the user to the list of organization's page. */
