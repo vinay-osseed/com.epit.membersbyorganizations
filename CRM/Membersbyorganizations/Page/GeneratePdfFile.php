@@ -18,13 +18,21 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         'Print PDF Letter'
       );
 
-      /* Get the organization name. */
+      /* Get the organization contact and the message template. */
       $org = civicrm_api3('Contact', 'getsingle', [
         'return' => ["display_name"],
         'id' => $org_id,
         'contact_type' => "Organization",
       ]);
+      $msg_tpl = civicrm_api3('MessageTemplate', 'getsingle', [
+        'msg_title' => "Employee List of Orgnization",
+      ]);
+
       $org_name = $org['display_name'];
+      $tpl_params = [
+        'org_name' => $org_name,
+        'style' => 'page-break-before: auto',
+      ];
       $name = CRM_Utils_Type::escape($org_name, 'String');
       $members = [];
 
@@ -57,39 +65,28 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
           'membership_id' => isset($contact['membership.id']) ? $contact['membership.id'] : 'None',
         ];
       }
+      $tpl_params['members'] = $members;
 
-      /* If there are no employees found for the organization, then it will display a warning message
-      and redirect the user to the list of organization's page. */
-      if (empty($members)) {
+      /* Generate the pdf file. */
+      $pdf_name = "Employees.pdf";
+
+      /* Send the message template parameters. */
+      $send_tpl_params = [
+          'messageTemplateID' =>(int) $msg_tpl['id'],
+          'tplParams' => $tpl_params,
+          'tokenContext' => ['contactId' => $org_id, 'smarty' => TRUE],
+          'PDFFilename' => $pdf_name,
+      ];
+
+      /* If there are no members of the organization, then the message template is not sent. */
+      if (empty($tpl_params['members'])) {
         CRM_Core_Session::setStatus(" ", ts('No Employees Found.'), "warning");
         CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/list-org', NULL, FALSE, NULL, FALSE, TRUE));
       }
 
       /* Generate the html code for the pdf file. */
-      $html = "<h1 align='center'>". $org_name ."</h1>
-        <h4 align='right'>Date :- ". $today ."</h4>
-        <h3 align='center'>Current Employees</h3>
-        <table border='1' style='width: 100%;border-collapse: collapse;'>
-          <thead>
-            <tr>
-              <th scope='col'>First Name</th>
-              <th scope='col'>Last Name</th>
-              <th scope='col'>Membership No</th>
-            </tr>
-          </thead>
-            <tbody>";
-        foreach ($members as $member) {
-          $html .= "<tr scope='row'>
-              <td align='center' >". $member['first_name'] ."</td>
-              <td align='center' >". $member['last_name'] ."</td>
-              <td align='center' >". $member['membership_id'] ."</td>
-            </tr>";
-        }
-      $html .= "</tbody></table>";
-
-      /* Generate the pdf file. */
-      $pdf_filename = "Employees.pdf";
-      $pdf_contents = CRM_Utils_PDF_Utils::html2pdf($html, $pdf_filename, true);
+      list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate($send_tpl_params);
+      $pdf_contents = CRM_Utils_PDF_Utils::html2pdf($html, $pdf_name, true);
 
       /* Creating an activity and attaching the pdf file to that activity. */
       $activity = civicrm_api3('Activity', 'create', [
@@ -102,7 +99,7 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         'sequential' => 1,
         'entity_table' => 'civicrm_activity',
         'entity_id' => $activity['id'],
-        'name' => $pdf_filename,
+        'name' => $pdf_name,
         'mime_type' => 'application/pdf',
         'content' => $pdf_contents,
       ]);

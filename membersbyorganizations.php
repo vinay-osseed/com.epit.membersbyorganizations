@@ -47,7 +47,7 @@ function membersbyorganizations_civicrm_postInstall() {
         <title></title>
       </head>
       <body>
-      <div style="page-break-before: always">
+      <div style="{$style}">
       <h1 align="center">{ts 1=$org_name} %1 {/ts}</h1>
       <h3 align="center">Current Employees</h3>
       <table border="1" style="width: 100%;border-collapse: collapse;">
@@ -194,6 +194,7 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
     $pdf_name = 'Employees.pdf';
     $tpl_params = [
       'org_name' => $org_name,
+      'style' => 'page-break-before: always',
     ];
     $members = [];
 
