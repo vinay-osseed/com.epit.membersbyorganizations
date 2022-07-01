@@ -30,7 +30,7 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
 
       /* Get a list of contacts who are employees of the organization. */
       $rel_contacts = \Civi\Api4\Contact::get()
-        ->addSelect('display_name', 'sort_name')
+        ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id')
         ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'id'])
         ->addJoin('ContributionRecur AS contribution_recur', 'LEFT', ['membership.contribution_recur_id', '=', 'contribution_recur.id'])
         ->addJoin('MembershipStatus AS membership_status', 'LEFT', ['membership.status_id', '=', 'membership_status.id'])
@@ -47,8 +47,14 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         ->addOrderBy('sort_name', 'ASC')
         ->execute();
       foreach ($rel_contacts as $contact) {
+        /* If the first and last name is empty, then the display name is assigned as first name. */
+        if (empty($contact['first_name']) && empty($contact['last_name'])) {
+          $contact['first_name'] = $contact['display_name'];
+        }
         $members[$contact['sort_name']] = [
-          'display_name' => $contact['display_name'],
+          'first_name' => $contact['first_name'],
+          'last_name' => $contact['last_name'],
+          'membership_id' => isset($contact['membership.id']) ? $contact['membership.id'] : 'None',
         ];
       }
 
@@ -66,13 +72,17 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         <table border='1' style='width: 100%;border-collapse: collapse;'>
           <thead>
             <tr>
-              <th scope='col'>Name</th>
+              <th scope='col'>First Name</th>
+              <th scope='col'>Last Name</th>
+              <th scope='col'>Membership No</th>
             </tr>
           </thead>
             <tbody>";
         foreach ($members as $member) {
           $html .= "<tr scope='row'>
-              <td align='center' >". $member['display_name'] ."</td>
+              <td align='center' >". $member['first_name'] ."</td>
+              <td align='center' >". $member['last_name'] ."</td>
+              <td align='center' >". $member['membership_id'] ."</td>
             </tr>";
         }
       $html .= "</tbody></table>";
