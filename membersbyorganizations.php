@@ -3,6 +3,7 @@
 require_once 'membersbyorganizations.civix.php';
 // phpcs:disable
 use CRM_Membersbyorganizations_ExtensionUtil as E;
+use Civi\Token\TokenProcessor;
 // phpcs:enable
 
 /**
@@ -59,11 +60,11 @@ function membersbyorganizations_civicrm_postInstall() {
           </tr>
         </thead>
         <tbody>
-        {foreach from=$members item=member}
+        {foreach from=$members key=index item=member name=count}
           <tr scope="row">
             <td align="center">{$member.first_name}</td>
             <td align="center">{$member.last_name}</td>
-            <td align="center">{$member.membership_id}</td>
+            <td align="center" id="{$smarty.foreach.count.index}">{$member.membership_id}</td>
           </tr>
         {/foreach}
         </tbody>
@@ -198,6 +199,15 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
     ];
     $members = [];
 
+    $tokenProcessor = new TokenProcessor(\Civi::dispatcher(), [
+      /* Give a unique identifier for this instance. */
+      'controller' => __CLASS__,
+      /* Enable or disable handling of Smarty notation. */
+      'smarty' => FALSE,
+      /* List any data fields that we plan to provide. */
+      'schema' => ['contactId'],
+    ]);
+
     /* Get a list of contacts who are employees of the organization. */
     $rel_contacts = \Civi\Api4\Contact::get()
     ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id')
@@ -217,6 +227,9 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
     ->addOrderBy('sort_name', 'ASC')
     ->execute();
     foreach ($rel_contacts as $contact) {
+      /* Adding a row to the token processor. */
+      $tokenProcessor->addRow(['contactId' => $contact['id']]);
+
       /* If the first and last name is empty, then the display name is assigned as first name. */
       if (empty($contact['first_name']) && empty($contact['last_name'])) {
         $contact['first_name'] = $contact['display_name'];
@@ -228,6 +241,20 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
       ];
     }
     $tpl_params['members'] = $members;
+
+    /* Get the token from template . */
+    $pattern = "/{contact.*}/i";
+    preg_match_all($pattern, $msg_tpl['msg_html'],$matches);
+    $token = implode("",$matches[0]);
+
+    /* Define the message template. */
+    $tokenProcessor->addMessage('token_value','<td align="center">'.$token.'</td>', 'text/html');
+
+    /* Evaluate any tokens which are referenced in the message. */
+    $tokenProcessor->evaluate();
+    foreach ($tokenProcessor->getRows() as $row) {
+      $mem_no[] = $row->render('token_value');
+    }
 
   /* Send the message template parameters. */
   $send_tpl_params = [
@@ -247,6 +274,11 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
   }
 
   list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate($send_tpl_params);
+
+  /* This is a workaround to replace the token with the membership number. */
+  foreach ($mem_no as $key => $value) {
+    $html = str_replace('<td align="center" id="'.$key.'"></td>', $value, $html);
+  }
   $session->set('tpl_html',$html);
 
   } catch (CiviCRM_API3_Exception $ex) {

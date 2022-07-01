@@ -1,5 +1,6 @@
 <?php
 use CRM_Membersbyorganizations_ExtensionUtil as E;
+use Civi\Token\TokenProcessor;
 
 class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
 
@@ -36,6 +37,15 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
       $name = CRM_Utils_Type::escape($org_name, 'String');
       $members = [];
 
+      $tokenProcessor = new TokenProcessor(\Civi::dispatcher(), [
+        /* Give a unique identifier for this instance. */
+        'controller' => __CLASS__,
+        /* Enable or disable handling of Smarty notation. */
+        'smarty' => FALSE,
+        /* List any data fields that we plan to provide. */
+        'schema' => ['contactId'],
+      ]);
+
       /* Get a list of contacts who are employees of the organization. */
       $rel_contacts = \Civi\Api4\Contact::get()
         ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id')
@@ -55,6 +65,9 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         ->addOrderBy('sort_name', 'ASC')
         ->execute();
       foreach ($rel_contacts as $contact) {
+        /* Adding a row to the token processor. */
+        $tokenProcessor->addRow(['contactId' => $contact['id']]);
+
         /* If the first and last name is empty, then the display name is assigned as first name. */
         if (empty($contact['first_name']) && empty($contact['last_name'])) {
           $contact['first_name'] = $contact['display_name'];
@@ -66,6 +79,20 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         ];
       }
       $tpl_params['members'] = $members;
+
+      /* Get the token from template . */
+      $pattern = "/{contact.*}/i";
+      preg_match_all($pattern, $msg_tpl['msg_html'],$matches);
+      $token = implode("",$matches[0]);
+
+      /* Define the message template. */
+      $tokenProcessor->addMessage('token_value','<td align="center">'.$token.'</td>', 'text/html');
+
+      /* Evaluate any tokens which are referenced in the message. */
+      $tokenProcessor->evaluate();
+      foreach ($tokenProcessor->getRows() as $row) {
+        $mem_no[] = $row->render('token_value');
+      }
 
       /* Generate the pdf file. */
       $pdf_name = "Employees.pdf";
@@ -86,6 +113,11 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
 
       /* Generate the html code for the pdf file. */
       list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate($send_tpl_params);
+
+      /* This is a workaround to replace the token with the membership number. */
+      foreach ($mem_no as $key => $value) {
+        $html = str_replace('<td align="center" id="'.$key.'"></td>', $value, $html);
+      }
       $pdf_contents = CRM_Utils_PDF_Utils::html2pdf($html, $pdf_name, true);
 
       /* Creating an activity and attaching the pdf file to that activity. */
