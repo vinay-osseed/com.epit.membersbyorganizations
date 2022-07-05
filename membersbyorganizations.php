@@ -210,12 +210,13 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
 
     /* Get a list of contacts who are employees of the organization. */
     $rel_contacts = \Civi\Api4\Contact::get()
-    ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id')
+    ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id', 'entity_tag.tag_id:label')
     ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'id'])
     ->addJoin('ContributionRecur AS contribution_recur', 'LEFT', ['membership.contribution_recur_id', '=', 'contribution_recur.id'])
     ->addJoin('MembershipStatus AS membership_status', 'LEFT', ['membership.status_id', '=', 'membership_status.id'])
     ->addJoin('Relationship AS relationship', 'LEFT', ['relationship.contact_id_a', '=', 'id'])
     ->addJoin('Contact AS contact', 'LEFT', ['contact.id', '=', 'relationship.contact_id_b'])
+    ->addJoin('EntityTag AS entity_tag', 'LEFT', ['entity_tag.entity_id', '=', 'relationship.contact_id_a'], ['entity_tag.entity_table', '=', "'civicrm_contact'"])
     ->addGroupBy('id')
     ->addWhere('contact.sort_name', 'LIKE', "%{$name}%")
     ->addWhere('relationship.is_active', '=', TRUE)
@@ -229,6 +230,11 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
     foreach ($rel_contacts as $contact) {
       /* Adding a row to the token processor. */
       $tokenProcessor->addRow(['contactId' => $contact['id']]);
+
+      /* This is a workaround to exclude the contacts who have the tag "Not for renewal". */
+      if ($contact['entity_tag.tag_id:label'] == "Not for renewal") {
+        continue;
+      }
 
       /* If the first and last name is empty, then the display name is assigned as first name. */
       if (empty($contact['first_name']) && empty($contact['last_name'])) {
