@@ -305,7 +305,9 @@ function membersbyorganizations_civicrm_alterMailContent(&$content) {
   /* This is a temporary solution to get the html content of the message template. */
   $session = CRM_Core_Session::singleton();
 
-  if ($session->isEmpty()) {
+  /* This is a workaround to check if the email is being sent from the contribution page. */
+  $email = (bool) preg_match("/\/email/", CRM_Utils_System::currentPath());
+  if ($session->isEmpty() || !$email) {
     return;
   }
 
