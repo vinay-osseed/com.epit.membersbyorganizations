@@ -170,16 +170,13 @@ function membersbyorganizations_civicrm_navigationMenu(&$menu) {
 }
 
 /**
- * Implements hook_civicrm_pre().
- *
- * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_pre
+ * User function for get the list of org employees.
  */
-function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
-  if ($objectName != "Contribution" || $op != "create") {
+function get_list($org_id) {
+  if (empty($org_id)) {
     return;
   }
 
-  $org_id = $params['contact_id'];
   try {
     /* Get the organization contact and the message template. */
     $org_contact = civicrm_api3('Contact', 'getsingle', [
@@ -290,6 +287,51 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
 
   } catch (CiviCRM_API3_Exception $ex) {
     CRM_Core_Error::debug_log_message("Hook `membersbyorganizations_civicrm_pre` Exception :- " . $ex->getMessage(), TRUE);
+  }
+}
+
+/**
+ * Implements hook_civicrm_links().
+ *
+ * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_links
+ */
+function membersbyorganizations_civicrm_links($op, $objectName, $objectId, &$links, &$mask, &$values){
+  if (empty($values['contribution_id'])) {
+    return;
+  }
+  $contributions = \Civi\Api4\Contribution::get()
+  ->addSelect('contact.employer_id')
+  ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'contact_id'])
+  ->addJoin('Contact AS contact', 'LEFT', ['contact.id', '=', 'contact_id'])
+  ->addWhere('id', '=', $objectId)
+  ->execute();
+  if (empty($contributions)) {
+    return;
+  }
+  foreach ($contributions as $contribution) {
+    get_list($contribution['contact.employer_id']);
+  }
+}
+
+/**
+ * Implements hook_civicrm_pre().
+ *
+ * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_pre
+ */
+function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
+  if ($objectName != "Contribution" || $op != "create") {
+    return;
+  }
+  /* This is to get the organization id from the membership type id. */
+  $temp = reset($params['line_item']);
+  $param = end($temp);
+  $org_id = civicrm_api3('MembershipType', 'getsingle', [
+    'sequential' => 1,
+    'return' => ["member_of_contact_id"],
+    'id' => $param['membership_type_id'],
+  ])['member_of_contact_id'];
+  if (!empty($org_id)) {
+    get_list($org_id);
   }
 }
 
