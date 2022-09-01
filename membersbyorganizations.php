@@ -6,6 +6,7 @@ use CRM_Membersbyorganizations_ExtensionUtil as E;
 use Civi\Token\TokenProcessor;
 // phpcs:enable
 
+define("TPL_TITLE", "Employee List of Orgnization");
 /**
  * Implements hook_civicrm_config().
  *
@@ -34,7 +35,7 @@ function membersbyorganizations_civicrm_postInstall() {
   try {
     $msg_template = civicrm_api3('MessageTemplate', 'getsingle', [
       'return' => ["id"],
-      'msg_title' => "Employee List of Orgnization",
+      'msg_title' => TPL_TITLE,
     ]);
   } catch (CiviCRM_API3_Exception $e) {
     $params = [
@@ -90,7 +91,7 @@ function membersbyorganizations_civicrm_uninstall() {
   try {
     $msg_template = civicrm_api3('MessageTemplate', 'getsingle', [
       'return' => ["id"],
-      'msg_title' => "Employee List of Orgnization",
+      'msg_title' => TPL_TITLE,
     ]);
     $result = civicrm_api3('MessageTemplate', 'delete', [
       'id' => $msg_template['id'],
@@ -189,7 +190,7 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
     $name = CRM_Utils_Type::escape($org_name, 'String');
 
     $msg_tpl = civicrm_api3('MessageTemplate', 'getsingle', [
-      'msg_title' => "Employee List of Orgnization",
+      'msg_title' => TPL_TITLE,
     ]);
 
     $pdf_name = 'Employees.pdf';
@@ -262,30 +263,30 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
       $mem_no[] = $row->render('token_value');
     }
 
-  /* Send the message template parameters. */
-  $send_tpl_params = [
-      'messageTemplateID' =>(int) $msg_tpl['id'],
-      'tplParams' => $tpl_params,
-      'tokenContext' => ['contactId' => $org_id, 'smarty' => TRUE],
-      'PDFFilename' => $pdf_name,
-  ];
+    /* Send the message template parameters. */
+    $send_tpl_params = [
+        'messageTemplateID' =>(int) $msg_tpl['id'],
+        'tplParams' => $tpl_params,
+        'tokenContext' => ['contactId' => $org_id, 'smarty' => TRUE],
+        'PDFFilename' => $pdf_name,
+    ];
 
-  /* This is a temporary solution to get the html content of the message template. */
-  $session = CRM_Core_Session::singleton();
+    /* This is a temporary solution to get the html content of the message template. */
+    $session = CRM_Core_Session::singleton();
 
-  /* If there are no members of the organization, then the message template is not sent. */
-  if (empty($tpl_params['members'])) {
-    $session->reset(['tpl_html']);
-    return;
-  }
+    /* If there are no members of the organization, then the message template is not sent. */
+    if (empty($tpl_params['members'])) {
+      $session->reset(['tpl_html']);
+      return;
+    }
 
-  list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate($send_tpl_params);
+    list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate($send_tpl_params);
 
-  /* This is a workaround to replace the token with the membership number. */
-  foreach ($mem_no as $key => $value) {
-    $html = str_replace('<td align="center" id="'.$key.'"></td>', $value, $html);
-  }
-  $session->set('tpl_html',$html);
+    /* This is a workaround to replace the token with the membership number. */
+    foreach ($mem_no as $key => $value) {
+      $html = str_replace('<td align="center" id="'.$key.'"></td>', $value, $html);
+    }
+    $session->set('tpl_html',$html);
 
   } catch (CiviCRM_API3_Exception $ex) {
     CRM_Core_Error::debug_log_message("Hook `membersbyorganizations_civicrm_pre` Exception :- " . $ex->getMessage(), TRUE);
