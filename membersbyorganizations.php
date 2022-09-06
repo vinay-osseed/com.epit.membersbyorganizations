@@ -325,6 +325,9 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
   /* This is to get the organization id from the membership type id. */
   $temp = reset($params['line_item']);
   $param = end($temp);
+  if (empty($param['membership_type_id'])) {
+    return;
+  }
   $org_id = civicrm_api3('MembershipType', 'getsingle', [
     'sequential' => 1,
     'return' => ["member_of_contact_id"],
