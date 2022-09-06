@@ -303,9 +303,10 @@ function membersbyorganizations_civicrm_links($op, $objectName, $objectId, &$lin
   ->addSelect('contact.employer_id')
   ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'contact_id'])
   ->addJoin('Contact AS contact', 'LEFT', ['contact.id', '=', 'contact_id'])
-  ->addWhere('id', '=', $objectId)
+  ->addWhere('id', '=', $values['contribution_id'])
   ->execute();
-  if (empty($contributions)) {
+  if (empty($contributions[0]['contact.employer_id'])) {
+    unset($_SESSION['CiviCRM']['tpl_html']);
     return;
   }
   foreach ($contributions as $contribution) {
