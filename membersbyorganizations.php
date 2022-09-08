@@ -297,21 +297,22 @@ function get_list($org_id) {
  */
 function membersbyorganizations_civicrm_links($op, $objectName, $objectId, &$links, &$mask, &$values){
   if (empty($values['contribution_id'])) {
-    return;
+    return NULL;
   }
-  $contributions = \Civi\Api4\Contribution::get()
-  ->addSelect('contact.employer_id')
-  ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'contact_id'])
-  ->addJoin('Contact AS contact', 'LEFT', ['contact.id', '=', 'contact_id'])
+  /* Getting the contact_id of the contribution. */
+  $org = \Civi\Api4\Contribution::get()
+  ->addSelect('contact_id')
   ->addWhere('id', '=', $values['contribution_id'])
+  ->addWhere('contact_id.contact_type', '=', 'Organization')
   ->execute();
-  if (empty($contributions[0]['contact.employer_id'])) {
+
+  /* Checking if the array is empty. If it is, it unsets the
+  'tpl_html' session and returns. */
+  if (count($org) == 0) {
     unset($_SESSION['CiviCRM']['tpl_html']);
-    return;
+    return NULL;
   }
-  foreach ($contributions as $contribution) {
-    get_list($contribution['contact.employer_id']);
-  }
+  get_list($org[0]['contact_id']);
 }
 
 /**
@@ -323,20 +324,17 @@ function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
   if ($objectName != "Contribution" || $op != "create") {
     return;
   }
-  /* This is to get the organization id from the membership type id. */
-  $temp = reset($params['line_item']);
-  $param = end($temp);
-  if (empty($param['membership_type_id'])) {
+  /* Getting the organization from the contact id. */
+  $org = \Civi\Api4\Contact::get()
+  ->addWhere('id', '=', $params['contact_id'])
+  ->addWhere('contact_type', '=', 'Organization')
+  ->execute();
+
+  /* Checking to see if the variable is empty. If it is, it will return nothing. */
+  if (count($org) == 0) {
     return;
   }
-  $org_id = civicrm_api3('MembershipType', 'getsingle', [
-    'sequential' => 1,
-    'return' => ["member_of_contact_id"],
-    'id' => $param['membership_type_id'],
-  ])['member_of_contact_id'];
-  if (!empty($org_id)) {
-    get_list($org_id);
-  }
+  get_list($org[0]['id']);
 }
 
 /**
