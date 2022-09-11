@@ -173,121 +173,124 @@ function membersbyorganizations_civicrm_navigationMenu(&$menu) {
  * User function for get the list of org employees.
  */
 function get_list($org_id) {
-  if (empty($org_id)) {
+  /* Get the organization contact and the message template. */
+  $org_contact = civicrm_api3('Contact', 'getsingle', [
+    'id' => $org_id,
+    'contact_type' => "Organization",
+  ]);
+  $org_name = $org_contact['display_name'];
+  $name = CRM_Utils_Type::escape($org_name, 'String');
+
+  $msg_tpl = civicrm_api3('MessageTemplate', 'getsingle', [
+    'msg_title' => TPL_TITLE,
+  ]);
+
+  $pdf_name = 'Employees.pdf';
+  $tpl_params = [
+    'org_name' => $org_name,
+    'style' => 'page-break-before: always',
+  ];
+  $members = [];
+
+  $tokenProcessor = new TokenProcessor(\Civi::dispatcher(), [
+    /* Give a unique identifier for this instance. */
+    'controller' => __CLASS__,
+    /* Enable or disable handling of Smarty notation. */
+    'smarty' => FALSE,
+    /* List any data fields that we plan to provide. */
+    'schema' => ['contactId'],
+  ]);
+
+  /* Get a list of contacts who are employees of the organization. */
+  $rel_contacts = \Civi\Api4\Contact::get()
+  ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id', 'entity_tag.tag_id:label')
+  ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'id'])
+  ->addJoin('ContributionRecur AS contribution_recur', 'LEFT', ['membership.contribution_recur_id', '=', 'contribution_recur.id'])
+  ->addJoin('MembershipStatus AS membership_status', 'LEFT', ['membership.status_id', '=', 'membership_status.id'])
+  ->addJoin('Relationship AS relationship', 'LEFT', ['relationship.contact_id_a', '=', 'id'])
+  ->addJoin('Contact AS contact', 'LEFT', ['contact.id', '=', 'relationship.contact_id_b'])
+  ->addJoin('EntityTag AS entity_tag', 'LEFT', ['entity_tag.entity_id', '=', 'relationship.contact_id_a'], ['entity_tag.entity_table', '=', "'civicrm_contact'"])
+  ->addGroupBy('id')
+  ->addWhere('contact.sort_name', 'LIKE', "%{$name}%")
+  ->addWhere('relationship.is_active', '=', TRUE)
+  ->addWhere('contact.is_deleted', '=', FALSE)
+  ->addWhere('relationship.relationship_type_id', '=', 5) // Employee
+  ->addWhere('membership.status_id', 'IN', [2, 5]) // Current & Pending
+  ->addWhere('membership.is_test', '=', FALSE)
+  ->addWhere('is_deleted', '=', FALSE)
+  ->addOrderBy('sort_name', 'ASC')
+  ->execute();
+
+  $session = CRM_Core_Session::singleton();
+  if (count($rel_contacts) == 0) {
+    $session->reset(1);
     return;
   }
 
-  try {
-    /* Get the organization contact and the message template. */
-    $org_contact = civicrm_api3('Contact', 'getsingle', [
-      'id' => $org_id,
-      'contact_type' => "Organization",
-    ]);
-    $org_name = $org_contact['display_name'];
-    $name = CRM_Utils_Type::escape($org_name, 'String');
+  foreach ($rel_contacts as $contact) {
+    /* Adding a row to the token processor. */
+    $tokenProcessor->addRow(['contactId' => $contact['id']]);
 
-    $msg_tpl = civicrm_api3('MessageTemplate', 'getsingle', [
-      'msg_title' => TPL_TITLE,
-    ]);
+    /* This is a workaround to exclude the contacts who have the tag "Not for renewal". */
+    if ($contact['entity_tag.tag_id:label'] == "Not for renewal") {
+    continue;
+    }
 
-    $pdf_name = 'Employees.pdf';
-    $tpl_params = [
-      'org_name' => $org_name,
-      'style' => 'page-break-before: always',
+    /* If the first and last name is empty, then the display name is assigned as first name. */
+    if (empty($contact['first_name']) && empty($contact['last_name'])) {
+      $contact['first_name'] = $contact['display_name'];
+    }
+    $members[$contact['sort_name']] = [
+      'first_name' => $contact['first_name'],
+      'last_name' => $contact['last_name'],
+      'membership_id' => isset($contact['membership.id']) ? $contact['membership.id'] : 'None',
     ];
-    $members = [];
-
-    $tokenProcessor = new TokenProcessor(\Civi::dispatcher(), [
-      /* Give a unique identifier for this instance. */
-      'controller' => __CLASS__,
-      /* Enable or disable handling of Smarty notation. */
-      'smarty' => FALSE,
-      /* List any data fields that we plan to provide. */
-      'schema' => ['contactId'],
-    ]);
-
-    /* Get a list of contacts who are employees of the organization. */
-    $rel_contacts = \Civi\Api4\Contact::get()
-    ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id', 'entity_tag.tag_id:label')
-    ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'id'])
-    ->addJoin('ContributionRecur AS contribution_recur', 'LEFT', ['membership.contribution_recur_id', '=', 'contribution_recur.id'])
-    ->addJoin('MembershipStatus AS membership_status', 'LEFT', ['membership.status_id', '=', 'membership_status.id'])
-    ->addJoin('Relationship AS relationship', 'LEFT', ['relationship.contact_id_a', '=', 'id'])
-    ->addJoin('Contact AS contact', 'LEFT', ['contact.id', '=', 'relationship.contact_id_b'])
-    ->addJoin('EntityTag AS entity_tag', 'LEFT', ['entity_tag.entity_id', '=', 'relationship.contact_id_a'], ['entity_tag.entity_table', '=', "'civicrm_contact'"])
-    ->addGroupBy('id')
-    ->addWhere('contact.sort_name', 'LIKE', "%{$name}%")
-    ->addWhere('relationship.is_active', '=', TRUE)
-    ->addWhere('contact.is_deleted', '=', FALSE)
-    ->addWhere('relationship.relationship_type_id', '=', 5) // Employee
-    ->addWhere('membership.status_id', 'IN', [2, 5]) // Current & Pending
-    ->addWhere('membership.is_test', '=', FALSE)
-    ->addWhere('is_deleted', '=', FALSE)
-    ->addOrderBy('sort_name', 'ASC')
-    ->execute();
-    foreach ($rel_contacts as $contact) {
-      /* Adding a row to the token processor. */
-      $tokenProcessor->addRow(['contactId' => $contact['id']]);
-
-      /* This is a workaround to exclude the contacts who have the tag "Not for renewal". */
-      if ($contact['entity_tag.tag_id:label'] == "Not for renewal") {
-        continue;
-      }
-
-      /* If the first and last name is empty, then the display name is assigned as first name. */
-      if (empty($contact['first_name']) && empty($contact['last_name'])) {
-        $contact['first_name'] = $contact['display_name'];
-      }
-      $members[$contact['sort_name']] = [
-        'first_name' => $contact['first_name'],
-        'last_name' => $contact['last_name'],
-        'membership_id' => isset($contact['membership.id']) ? $contact['membership.id'] : 'None',
-      ];
-    }
-    $tpl_params['members'] = $members;
-
-    /* Get the token from template . */
-    $pattern = "/{contact.*}/i";
-    preg_match_all($pattern, $msg_tpl['msg_html'],$matches);
-    $token = implode("",$matches[0]);
-
-    /* Define the message template. */
-    $tokenProcessor->addMessage('token_value','<td align="center">'.$token.'</td>', 'text/html');
-
-    /* Evaluate any tokens which are referenced in the message. */
-    $tokenProcessor->evaluate();
-    foreach ($tokenProcessor->getRows() as $row) {
-      $mem_no[] = $row->render('token_value');
-    }
-
-    /* Send the message template parameters. */
-    $send_tpl_params = [
-        'messageTemplateID' =>(int) $msg_tpl['id'],
-        'tplParams' => $tpl_params,
-        'tokenContext' => ['contactId' => $org_id, 'smarty' => TRUE],
-        'PDFFilename' => $pdf_name,
-    ];
-
-    /* This is a temporary solution to get the html content of the message template. */
-    $session = CRM_Core_Session::singleton();
-
-    /* If there are no members of the organization, then the message template is not sent. */
-    if (empty($tpl_params['members'])) {
-      $session->reset(['tpl_html']);
-      return;
-    }
-
-    list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate($send_tpl_params);
-
-    /* This is a workaround to replace the token with the membership number. */
-    foreach ($mem_no as $key => $value) {
-      $html = str_replace('<td align="center" id="'.$key.'"></td>', $value, $html);
-    }
-    $session->set('tpl_html',$html);
-
-  } catch (CiviCRM_API3_Exception $ex) {
-    CRM_Core_Error::debug_log_message("Hook `membersbyorganizations_civicrm_pre` Exception :- " . $ex->getMessage(), TRUE);
   }
+  $tpl_params['members'] = $members;
+
+  /* Get the token from template . */
+  $pattern = "/{contact.*}/i";
+  preg_match_all($pattern, $msg_tpl['msg_html'],$matches);
+  $token = implode("",$matches[0]);
+
+  /* Define the message template. */
+  $tokenProcessor->addMessage('token_value','<td align="center">'.$token.'</td>', 'text/html');
+
+  /* Evaluate any tokens which are referenced in the message. */
+  $tokenProcessor->evaluate();
+  foreach ($tokenProcessor->getRows() as $row) {
+    $mem_no[] = $row->render('token_value');
+  }
+
+  /* Send the message template parameters. */
+  $send_tpl_params = [
+    'messageTemplateID' =>(int) $msg_tpl['id'],
+    'tplParams' => $tpl_params,
+    'tokenContext' => ['contactId' => $org_id, 'smarty' => TRUE],
+    'PDFFilename' => $pdf_name,
+  ];
+  list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplate::sendTemplate($send_tpl_params);
+
+  /* This is a workaround to replace the token with the membership number. */
+  foreach ($mem_no as $key => $value) {
+    $html = str_replace('<td align="center" id="'.$key.'"></td>', $value, $html);
+  }
+  $session->set('tpl_html', $html);
+}
+
+/**
+ * User function to check if contact_id is of `organization` or not.
+ */
+function is_org_id($id) {
+  $org = \Civi\Api4\Contact::get()
+  ->addWhere('id', '=', $id)
+  ->addWhere('contact_type', '=', 'Organization')
+  ->execute();
+
+  if (count($org) == 0) {
+    return FALSE;
+  }
+  return TRUE;
 }
 
 /**
@@ -295,24 +298,40 @@ function get_list($org_id) {
  *
  * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_links
  */
-function membersbyorganizations_civicrm_links($op, $objectName, $objectId, &$links, &$mask, &$values){
-  if (empty($values['contribution_id'])) {
+function membersbyorganizations_civicrm_links($op, $objectName, $objectId, &$links, &$mask, &$values) {
+  if (empty($values)) {
     return NULL;
   }
-  /* Getting the contact_id of the contribution. */
-  $org = \Civi\Api4\Contribution::get()
-  ->addSelect('contact_id')
-  ->addWhere('id', '=', $values['contribution_id'])
-  ->addWhere('contact_id.contact_type', '=', 'Organization')
-  ->execute();
 
-  /* Checking if the array is empty. If it is, it unsets the
-  'tpl_html' session and returns. */
-  if (count($org) == 0) {
-    unset($_SESSION['CiviCRM']['tpl_html']);
-    return NULL;
+  switch ($op) {
+    case 'contribution.selector.row':
+      $cid = $values['cid'];
+      if (is_org_id($cid)) {
+        get_list($cid);
+      }
+      break;
+
+    case 'Payment.edit.action':
+      /* Getting the contact_id of the contribution. */
+      $org = \Civi\Api4\Contribution::get()
+      ->addSelect('contact_id')
+      ->addWhere('id', '=', $values['contribution_id'])
+      ->addWhere('contact_id.contact_type', '=', 'Organization')
+      ->execute();
+      if (count($org) != 0) {
+        $cid = $org[0]['contact_id'];
+      }
+      if (is_org_id($cid)) {
+        get_list($cid);
+      }
+      break;
+
+    default:
+      $session = CRM_Core_Session::singleton();
+      $session->reset(1);
+      break;
   }
-  get_list($org[0]['contact_id']);
+  return NULL;
 }
 
 /**
@@ -320,21 +339,14 @@ function membersbyorganizations_civicrm_links($op, $objectName, $objectId, &$lin
  *
  * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_pre
  */
-function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params){
+function membersbyorganizations_civicrm_pre($op, $objectName, $id, &$params) {
   if ($objectName != "Contribution" || $op != "create") {
     return;
   }
-  /* Getting the organization from the contact id. */
-  $org = \Civi\Api4\Contact::get()
-  ->addWhere('id', '=', $params['contact_id'])
-  ->addWhere('contact_type', '=', 'Organization')
-  ->execute();
 
-  /* Checking to see if the variable is empty. If it is, it will return nothing. */
-  if (count($org) == 0) {
-    return;
+  if (is_org_id($params['contact_id'])) {
+    get_list($params['contact_id']);
   }
-  get_list($org[0]['id']);
 }
 
 /**
@@ -347,12 +359,8 @@ function membersbyorganizations_civicrm_alterMailContent(&$content) {
     return;
   }
 
-  /* This is a temporary solution to get the html content of the message template. */
   $session = CRM_Core_Session::singleton();
-
-  /* This is a workaround to check if the email is being sent from the contribution page. */
-  $email = (bool) preg_match("/\/email/", CRM_Utils_System::currentPath());
-  if ($session->isEmpty() || !$email) {
+  if ($session->isEmpty()) {
     return;
   }
 
