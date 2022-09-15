@@ -305,9 +305,11 @@ function membersbyorganizations_civicrm_links($op, $objectName, $objectId, &$lin
 
   switch ($op) {
     case 'contribution.selector.row':
-      $cid = $values['cid'];
-      if (is_org_id($cid)) {
-        get_list($cid);
+      if ($values['cxt'] == "contribution") {
+        $cid = $values['cid'];
+        if (is_org_id($cid)) {
+          get_list($cid);
+        }
       }
       break;
 
@@ -324,11 +326,6 @@ function membersbyorganizations_civicrm_links($op, $objectName, $objectId, &$lin
       if (is_org_id($cid)) {
         get_list($cid);
       }
-      break;
-
-    default:
-      $session = CRM_Core_Session::singleton();
-      $session->reset(1);
       break;
   }
   return NULL;
