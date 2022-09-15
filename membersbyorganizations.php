@@ -215,7 +215,7 @@ function get_list($org_id) {
   ->addWhere('relationship.is_active', '=', TRUE)
   ->addWhere('contact.is_deleted', '=', FALSE)
   ->addWhere('relationship.relationship_type_id', '=', 5) // Employee
-  ->addWhere('membership.status_id', 'IN', [2, 5]) // Current & Pending
+  ->addWhere('membership.status_id', 'IN', [2, 3, 5]) // Current, Grace, Pending
   ->addWhere('membership.is_test', '=', FALSE)
   ->addWhere('is_deleted', '=', FALSE)
   ->addOrderBy('sort_name', 'ASC')
