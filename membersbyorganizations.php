@@ -380,7 +380,5 @@ function membersbyorganizations_civicrm_alterMailContent(&$content) {
   }
 
   $tpl_html = $session->get('tpl_html');
-  if (!empty($tpl_html)) {
-    $content['html'] .= $tpl_html;
-  }
+  $content['html'] .= $tpl_html;
 }
