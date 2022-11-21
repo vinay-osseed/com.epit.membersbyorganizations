@@ -203,23 +203,23 @@ function get_list($org_id) {
 
   /* Get a list of contacts who are employees of the organization. */
   $rel_contacts = \Civi\Api4\Contact::get()
-  ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id', 'entity_tag.tag_id:label')
-  ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'id'])
-  ->addJoin('ContributionRecur AS contribution_recur', 'LEFT', ['membership.contribution_recur_id', '=', 'contribution_recur.id'])
-  ->addJoin('MembershipStatus AS membership_status', 'LEFT', ['membership.status_id', '=', 'membership_status.id'])
-  ->addJoin('Relationship AS relationship', 'LEFT', ['relationship.contact_id_a', '=', 'id'])
-  ->addJoin('Contact AS contact', 'LEFT', ['contact.id', '=', 'relationship.contact_id_b'])
-  ->addJoin('EntityTag AS entity_tag', 'LEFT', ['entity_tag.entity_id', '=', 'relationship.contact_id_a'], ['entity_tag.entity_table', '=', "'civicrm_contact'"])
-  ->addGroupBy('id')
-  ->addWhere('contact.sort_name', 'LIKE', "%{$name}%")
-  ->addWhere('relationship.is_active', '=', TRUE)
-  ->addWhere('contact.is_deleted', '=', FALSE)
-  ->addWhere('relationship.relationship_type_id', '=', 5) // Employee
-  ->addWhere('membership.status_id', 'IN', [2, 3, 5]) // Current, Grace, Pending
-  ->addWhere('membership.is_test', '=', FALSE)
-  ->addWhere('is_deleted', '=', FALSE)
-  ->addOrderBy('sort_name', 'ASC')
-  ->execute();
+    ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id', 'entity_tag.tag_id:label')
+    ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'id'])
+    ->addJoin('ContributionRecur AS contribution_recur', 'LEFT', ['membership.contribution_recur_id', '=', 'contribution_recur.id'])
+    ->addJoin('MembershipStatus AS membership_status', 'LEFT', ['membership.status_id', '=', 'membership_status.id'])
+    ->addJoin('Relationship AS relationship', 'LEFT', ['relationship.contact_id_a', '=', 'id'])
+    ->addJoin('Contact AS contact', 'LEFT', ['contact.id', '=', 'relationship.contact_id_b'])
+    ->addJoin('EntityTag AS entity_tag', 'LEFT', ['entity_tag.entity_id', '=', 'relationship.contact_id_a'], ['entity_tag.entity_table', '=', "'civicrm_contact'"])
+    ->addGroupBy('id')
+    ->addWhere('contact.sort_name', 'LIKE', "%{$name}%")
+    ->addWhere('relationship.is_active', '=', TRUE)
+    ->addWhere('contact.is_deleted', '=', FALSE)
+    ->addWhere('relationship.relationship_type_id', '=', 5) // Employee
+    ->addWhere('membership.status_id', 'IN', [2, 3, 5]) // Current, Grace, Pending
+    ->addWhere('membership.is_test', '=', FALSE)
+    ->addWhere('is_deleted', '=', FALSE)
+    ->addOrderBy('sort_name', 'ASC')
+    ->execute();
 
   $session = CRM_Core_Session::singleton();
   if (count($rel_contacts) == 0) {
