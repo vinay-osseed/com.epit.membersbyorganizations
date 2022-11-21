@@ -26,7 +26,7 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         'contact_type' => "Organization",
       ]);
       $msg_tpl = civicrm_api3('MessageTemplate', 'getsingle', [
-        'msg_title' => "Employee List of Orgnization",
+        'msg_title' => "Employee List of Organization",
       ]);
 
       $org_name = $org['display_name'];
@@ -48,7 +48,7 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
 
       /* Get a list of contacts who are employees of the organization. */
       $rel_contacts = \Civi\Api4\Contact::get()
-        ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id', 'entity_tag.tag_id:label')
+        ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id', 'membership.status_id', 'membership.membership_type_id:label')
         ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'id'])
         ->addJoin('ContributionRecur AS contribution_recur', 'LEFT', ['membership.contribution_recur_id', '=', 'contribution_recur.id'])
         ->addJoin('MembershipStatus AS membership_status', 'LEFT', ['membership.status_id', '=', 'membership_status.id'])
@@ -90,6 +90,9 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
           'first_name' => $contact['first_name'],
           'last_name' => $contact['last_name'],
           'membership_id' => isset($contact['membership.id']) ? $contact['membership.id'] : 'None',
+          /* Checking if the contact has a membership status of 2 (current) and if so, it is displaying the
+            membership type. If not, it is displaying "None". */
+          'membership_type' => ($contact['membership.status_id'] == 2) ? $contact['membership.membership_type_id:label'] : 'None',
         ];
       }
       $tpl_params['members'] = $members;

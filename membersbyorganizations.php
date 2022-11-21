@@ -6,7 +6,7 @@ use CRM_Membersbyorganizations_ExtensionUtil as E;
 use Civi\Token\TokenProcessor;
 // phpcs:enable
 
-define("TPL_TITLE", "Employee List of Orgnization");
+define("TPL_TITLE", "Employee List of Organization");
 /**
  * Implements hook_civicrm_config().
  *
@@ -39,8 +39,8 @@ function membersbyorganizations_civicrm_postInstall() {
     ]);
   } catch (CiviCRM_API3_Exception $e) {
     $params = [
-      'msg_title' => 'Employee List of Orgnization',
-      'msg_subject' => 'Employee List of Orgnization',
+      'msg_title' => 'Employee List of Organization',
+      'msg_subject' => 'Employee List of Organization',
       'workflow_id' => 1,
       'msg_html' => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
       <html xmlns="http://www.w3.org/1999/xhtml">
@@ -58,6 +58,7 @@ function membersbyorganizations_civicrm_postInstall() {
             <th scope="col">First Name</th>
             <th scope="col">Last Name</th>
             <th scope="col">Membership No</th>
+            <th scope="col">Membership Type</th>
           </tr>
         </thead>
         <tbody>
@@ -66,6 +67,7 @@ function membersbyorganizations_civicrm_postInstall() {
             <td align="center">{$member.first_name}</td>
             <td align="center">{$member.last_name}</td>
             <td align="center" id="{$smarty.foreach.count.index}">{$member.membership_id}</td>
+            <td align="center">{$member.membership_type}</td>
           </tr>
         {/foreach}
         </tbody>
@@ -203,7 +205,7 @@ function get_list($org_id) {
 
   /* Get a list of contacts who are employees of the organization. */
   $rel_contacts = \Civi\Api4\Contact::get()
-    ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id', 'entity_tag.tag_id:label')
+    ->addSelect('display_name', 'sort_name', 'first_name', 'last_name', 'membership.id', 'membership.status_id', 'membership.membership_type_id:label')
     ->addJoin('Membership AS membership', 'LEFT', ['membership.contact_id', '=', 'id'])
     ->addJoin('ContributionRecur AS contribution_recur', 'LEFT', ['membership.contribution_recur_id', '=', 'contribution_recur.id'])
     ->addJoin('MembershipStatus AS membership_status', 'LEFT', ['membership.status_id', '=', 'membership_status.id'])
@@ -252,6 +254,9 @@ function get_list($org_id) {
       'first_name' => $contact['first_name'],
       'last_name' => $contact['last_name'],
       'membership_id' => isset($contact['membership.id']) ? $contact['membership.id'] : 'None',
+      /* Checking if the contact has a membership status of 2 (current) and if so, it is displaying the
+        membership type. If not, it is displaying "None". */
+      'membership_type' => ($contact['membership.status_id'] == 2) ? $contact['membership.membership_type_id:label'] : 'None',
     ];
   }
   $tpl_params['members'] = $members;
