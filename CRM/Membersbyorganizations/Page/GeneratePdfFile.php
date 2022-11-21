@@ -69,8 +69,16 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         /* Adding a row to the token processor. */
         $tokenProcessor->addRow(['contactId' => $contact['id']]);
 
-        /* This is a workaround to exclude the contacts who have the tag "Not for renewal". */
-        if ($contact['entity_tag.tag_id:label'] == "Not for renewal") {
+        /**
+         * This is a workaround to exclude the contacts who have the tag "Not for renewal".
+         * @link https://docs.civicrm.org/user/en/latest/organising-your-data/groups-and-tags/#limitations-of-tags : 2nd point
+         */
+        $tags = civicrm_api3('Contact', 'getsingle', [
+          'return' => ["tag"],
+          'id' => $contact['id'],
+          'contact_type' => "Individual",
+        ])["tags"];
+        if (in_array("Not for renewal", explode(",", $tags))) {
           continue;
         }
 

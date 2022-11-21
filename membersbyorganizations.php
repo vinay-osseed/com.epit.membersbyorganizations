@@ -231,9 +231,17 @@ function get_list($org_id) {
     /* Adding a row to the token processor. */
     $tokenProcessor->addRow(['contactId' => $contact['id']]);
 
-    /* This is a workaround to exclude the contacts who have the tag "Not for renewal". */
-    if ($contact['entity_tag.tag_id:label'] == "Not for renewal") {
-    continue;
+    /**
+     * This is a workaround to exclude the contacts who have the tag "Not for renewal".
+     * @link https://docs.civicrm.org/user/en/latest/organising-your-data/groups-and-tags/#limitations-of-tags : 2nd point
+     */
+    $tags = civicrm_api3('Contact', 'getsingle', [
+      'return' => ["tag"],
+      'id' => $contact['id'],
+      'contact_type' => "Individual",
+    ])["tags"];
+    if (in_array("Not for renewal", explode(",", $tags))) {
+      continue;
     }
 
     /* If the first and last name is empty, then the display name is assigned as first name. */
@@ -367,5 +375,7 @@ function membersbyorganizations_civicrm_alterMailContent(&$content) {
   }
 
   $tpl_html = $session->get('tpl_html');
-  $content['html'] .= $tpl_html;
+  if (!empty($tpl_html)) {
+    $content['html'] .= $tpl_html;
+  }
 }
