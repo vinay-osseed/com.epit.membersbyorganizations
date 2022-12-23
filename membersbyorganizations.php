@@ -382,3 +382,31 @@ function membersbyorganizations_civicrm_alterMailContent(&$content) {
   $tpl_html = $session->get('tpl_html');
   $content['html'] .= $tpl_html;
 }
+
+/**
+ * Implement hook_civicrm_alterMailParams
+ *
+ * Assign values to custom fields.
+ */
+function membersbyorganizations_civicrm_alterMailParams(&$params, $context) {
+  if ($context != 'messageTemplate' && $params['workflow'] != 'contribution_invoice_receipt') {
+    return;
+  }
+
+  // Checking if the contribution id is empty.
+  $contributionId = $params['tplParams']['id'];
+  if (empty($contributionId)) {
+    return;
+  }
+
+  // Get the custom fields from the contribution.
+  $result = \Civi\Api4\Contribution::get()
+    ->addSelect('Transaction_extra_fields.VAT_number', 'Transaction_extra_fields.Purchase_order')
+    ->addWhere('id', '=', $contributionId)
+    ->execute()
+    ->first();
+
+  // Add the custom fields to the invoice.
+  $params['tplParams']['vat_number'] = $result['Transaction_extra_fields.VAT_number'] ?? '';
+  $params['tplParams']['purchase_order'] = $result['Transaction_extra_fields.Purchase_order'] ?? '';
+}
