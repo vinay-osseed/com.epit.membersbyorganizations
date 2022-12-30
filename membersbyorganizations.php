@@ -399,12 +399,17 @@ function membersbyorganizations_civicrm_alterMailParams(&$params, $context) {
     return;
   }
 
-  // Get the custom fields from the contribution.
-  $result = \Civi\Api4\Contribution::get()
-    ->addSelect('Transaction_extra_fields.VAT_number', 'Transaction_extra_fields.Purchase_order')
-    ->addWhere('id', '=', $contributionId)
-    ->execute()
-    ->first();
+  try {
+    // Get the custom fields from the contribution.
+    // Disabled the `checkPermissions` by passing FALSE.
+    $result = \Civi\Api4\Contribution::get(FALSE)
+      ->addSelect('Transaction_extra_fields.VAT_number', 'Transaction_extra_fields.Purchase_order')
+      ->addWhere('id', '=', $contributionId)
+      ->execute()
+      ->first();
+  } catch (\Exception $ex) {
+    Civi::log()->error('membersbyorganizations Exception : ' . $ex->getMessage());
+  }
 
   // Add the custom fields to the invoice.
   $params['tplParams']['vat_number'] = $result['Transaction_extra_fields.VAT_number'] ?? '';
