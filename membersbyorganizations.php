@@ -66,7 +66,11 @@ function membersbyorganizations_civicrm_postInstall() {
           <tr scope="row">
             <td align="center">{$member.first_name}</td>
             <td align="center">{$member.last_name}</td>
-            <td align="center" id="{$smarty.foreach.count.index}">{$member.membership_id}</td>
+            <!--
+              Use below line to access membership id.
+              <td align="center" id="{$smarty.foreach.count.index}">{$member.membership_id}</td>
+            -->
+            <td align="center" id="{$smarty.foreach.count.index}">{$member.membership_number}</td>
             <td align="center">{$member.membership_type}</td>
           </tr>
         {/foreach}
