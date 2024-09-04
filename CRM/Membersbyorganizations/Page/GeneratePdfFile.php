@@ -56,7 +56,7 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         ->addJoin('Contact AS contact', 'LEFT', ['contact.id', '=', 'relationship.contact_id_b'])
         ->addJoin('EntityTag AS entity_tag', 'LEFT', ['entity_tag.entity_id', '=', 'relationship.contact_id_a'], ['entity_tag.entity_table', '=', "'civicrm_contact'"])
         ->addGroupBy('id')
-        ->addWhere('contact.sort_name', 'LIKE', $name)
+        ->addWhere('contact.id', '=', $org_id)
         ->addWhere('relationship.is_active', '=', TRUE)
         ->addWhere('contact.is_deleted', '=', FALSE)
         ->addWhere('relationship.relationship_type_id', '=', 5) // Employee of
