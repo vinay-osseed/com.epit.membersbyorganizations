@@ -175,6 +175,20 @@ function membersbyorganizations_civicrm_navigationMenu(&$menu) {
   _membersbyorganizations_civix_navigationMenu($menu);
 }
 
+function get_tag_id($label) {
+  // Get tag ID of `Membership paid by firm`
+  $tag_id = civicrm_api4('Tag', 'get', [
+    'select' => [
+      'id',
+    ],
+    'where' => [
+      ['label', '=', $label],
+    ],
+    'checkPermissions' => FALSE,
+  ])->first();
+  return $tag_id['id'] ?? "";
+
+}
 /**
  * User function for get the list of org employees.
  */
@@ -224,7 +238,8 @@ function get_list($org_id) {
     ->addWhere('membership.status_id', 'IN', [2, 3]) // Current, Grace, 5 Pending removed
     ->addWhere('membership.is_test', '=', FALSE)
     ->addWhere('is_deleted', '=', FALSE)
-    ->addWhere('entity_tag.id', 'IS NOT NULL')
+    ->addWhere('entity_tag.tag_id', 'IS NOT NULL')
+    ->addWhere('entity_tag.tag_id', '=', get_tag_id('Membership paid by firm'))
     ->addOrderBy('sort_name', 'ASC')
     ->execute();
 
