@@ -224,6 +224,7 @@ function get_list($org_id) {
     ->addWhere('membership.status_id', 'IN', [2, 3]) // Current, Grace, 5 Pending removed
     ->addWhere('membership.is_test', '=', FALSE)
     ->addWhere('is_deleted', '=', FALSE)
+    ->addWhere('entity_tag.id', 'IS NOT NULL')
     ->addOrderBy('sort_name', 'ASC')
     ->execute();
 

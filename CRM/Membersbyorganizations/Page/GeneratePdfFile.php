@@ -63,6 +63,7 @@ class CRM_Membersbyorganizations_Page_GeneratePdfFile extends CRM_Core_Page{
         ->addWhere('membership_status.is_current_member', '=', TRUE) // Current
         ->addWhere('membership.is_test', '=', FALSE)
         ->addWhere('is_deleted', '=', FALSE)
+        ->addWhere('entity_tag.id', 'IS NOT NULL')
         ->addOrderBy('sort_name', 'ASC')
         ->execute();
       foreach ($rel_contacts as $contact) {
