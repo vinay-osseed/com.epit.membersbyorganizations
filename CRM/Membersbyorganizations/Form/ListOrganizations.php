@@ -83,7 +83,11 @@ class CRM_Membersbyorganizations_Form_ListOrganizations extends CRM_Core_Form {
     /* Setting the limit and offset for the API call. */
     list($offset, $rowCount) = $this->_pager->getOffsetAndRowCount();
     if (!isset($param['options']['limit'])) {
-      $param['options'] = ['limit' => $rowCount, 'offset' => $offset];
+      $param['options'] = [
+        'limit' => $rowCount,
+        'offset' => $offset,
+        'sort' => 'display_name ASC',
+      ];
     }
 
     /* Get a list of all organizations. */
